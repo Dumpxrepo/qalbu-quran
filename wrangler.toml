@@ -1,10 +1,7 @@
 name = "qalbu-quran"
 compatibility_date = "2024-01-01"
+main = "./dist/_worker.js"
 
-# Menentukan bahwa ini adalah project Astro yang di-build untuk Workers
-[site]
-bucket = "./dist"
-
-# Jika ingin menggunakan environment variables di Cloudflare dashboard,
-# Anda bisa menambahkannya di dashboard Cloudflare nanti, 
-# atau set di file .env lokal untuk development.
+# Hapus atau komentari bagian [site] karena tidak diperlukan untuk SSR
+# [site]
+# bucket = "./dist"
