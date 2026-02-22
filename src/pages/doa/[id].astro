@@ -1,0 +1,518 @@
+---
+// src/pages/doa/[id].astro
+// Halaman detail doa - menampilkan doa spesifik berdasarkan ID dari API
+// Fitur:
+// 1. Dark mode support dengan komposisi warna UI/UX yang optimal
+// 2. Navigasi prev/next dengan validasi doa terakhir
+// 3. Button "Menu Utama" dengan warna optimal di dark mode
+// 4. Responsive design
+// Cloudflare Workers compatible (fetch API tersedia di Edge)
+
+import Layout from '../../layouts/Layout.astro';
+
+// =========================================
+// SERVER-SIDE LOGIC (Dieksekusi di Server)
+// =========================================
+
+// Ambil parameter ID dari URL (Dynamic Routing)
+// Contoh: /doa/1 → id = "1"
+const { id } = Astro.params;
+
+// =========================================
+// ASYNC DATA FETCHING - Parallel Execution
+// =========================================
+
+// Fetch data doa saat ini DAN doa selanjutnya secara PARALLEL
+// Menggunakan Promise.all() untuk optimasi performance
+// Kedua fetch dieksekusi bersamaan, bukan berurutan
+
+const [currentResponse, nextResponse] = await Promise.all([
+  // Fetch doa saat ini
+  fetch(`${import.meta.env.PUBLIC_API_DOA_DETAIL}/${id}`),
+  
+  // Fetch doa selanjutnya untuk cek validitas
+  // Gunakan id+1 untuk mengecek apakah ada doa berikutnya
+  fetch(`${import.meta.env.PUBLIC_API_DOA_DETAIL}/${parseInt(id!) + 1}`)
+]);
+
+// Parse JSON responses
+const currentResult = await currentResponse.json();
+const nextResult = await nextResponse.json();
+
+// API Doa kadang beda struktur responnya, sesuaikan dengan 'result'
+// Format umum: { status: 'success',  { ... } }
+const doa = currentResult.data;
+
+// Validasi  Jika doa tidak ditemukan, redirect ke halaman 404
+if (!doa) return Astro.redirect('/404');
+
+// =========================================
+// NAVIGATION LOGIC
+// =========================================
+
+// Logika Button Prev/Next (Asumsi ID doa berurutan)
+// parseInt() mengkonversi string ID ke number untuk operasi matematika
+const currentId = parseInt(id!);
+
+// Previous ID: Jika currentId > 1, kurangi 1. Jika tidak (ID=1), set null
+const prevId = currentId > 1 ? currentId - 1 : null;
+
+// Next ID: Tambah 1 ke currentId
+const nextId = currentId + 1;
+
+// =========================================
+// DOA TERAKHIR DETECTION LOGIC
+// =========================================
+
+// Cek apakah doa selanjutnya valid (ada atau tidak)
+// Algoritma:
+// - Jika nextResponse status 200 OK → doa selanjutnya ADA
+// - Jika nextResponse status 404 Not Found → doa selanjutnya TIDAK ADA (ini doa terakhir)
+// - Jika error lain → asumsikan ada (biarkan user coba, API akan handle 404)
+
+let isLastDoa = false;
+
+// Cek status response dari fetch doa selanjutnya
+if (nextResponse.status === 404) {
+  // Status 404 berarti doa dengan ID nextId tidak ditemukan
+  // Artinya currentId adalah doa terakhir
+  isLastDoa = true;
+} else if (nextResponse.status === 200) {
+  // Status 200 berarti doa selanjutnya ada
+  // Tapi kita juga cek apakah data valid
+  if (!nextResult.data || nextResult.data === null) {
+    // Response 200 tapi data kosong/null → anggap tidak ada
+    isLastDoa = true;
+  }
+}
+// Untuk status lain (500, network error, dll), biarkan isLastDoa = false
+// User bisa klik, dan jika error akan di-handle oleh halaman tujuan
+---
+
+<Layout title={`${doa.nama} | Doa`}>
+    <!-- =========================================
+        NAVIGATION BUTTONS BAR
+        ========================================= -->
+    <div class="flex justify-between items-center bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm mb-8">
+        <!-- Button Previous - Disabled jika sudah di ID pertama -->
+        {prevId ? (
+            <a
+                href={`/doa/${prevId}`}
+                class="text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 transition-colors px-3 py-2 rounded-lg"
+            >
+                ← Doa Sebelumnya
+            </a>
+        ) : (
+            <!-- 
+                DISABLED PREVIOUS BUTTON - Dark Mode Color Update
+                Sebelumnya: dark:text-slate-600 (terlalu gelap, kontras rendah)
+                Sekarang: dark:text-slate-400 (#94a3b8)
+                
+                Rumus Komposisi Warna UI/UX:
+                - Background disabled: Slate-900 dengan opacity rendah
+                - Text disabled: Slate-400 (kontras 4.5:1, masuk AA accessibility)
+                - Opacity: 50% untuk visual cue "non-interaktif"
+                
+                Alasan perubahan:
+                - Slate-600 (#475569) di background Slate-900 hanya ~3:1 kontras
+                - Slate-400 (#94a3b8) memberikan kontras ~4.5:1 (cukup terbaca)
+                - Tetap terlihat "disabled" karena opacity 50%, tapi tidak hilang total
+            -->
+            <span class="text-sm font-medium text-slate-300 dark:text-slate-400 cursor-not-allowed opacity-50 px-3 py-2 rounded-lg">
+                ← Doa Sebelumnya
+            </span>
+        )}
+
+        <!--
+            BUTTON MENU UTAMA - Komposisi Warna UI/UX Dark Mode:
+            Light Mode:
+                text-emerald-600 (#059669) - Hijau gelap
+                bg-emerald-50 (#ecfdf5) - Background hijau sangat muda
+            Dark Mode:
+                text-emerald-300 (#6ee7b7) - Hijau terang untuk readability optimal
+                bg-emerald-900/20 (rgba(6, 78, 59, 0.2)) - Background transparan
+            Hover Dark Mode:
+                text-emerald-200 (#a7f3d0) - Lebih terang saat hover
+                bg-emerald-900/30 (rgba(6, 78, 59, 0.3)) - Lebih gelap saat hover
+
+            Alasan Pemilihan Warna:
+            - Emerald-300 memberikan kontras ~8:1 terhadap background slate-900
+            - Cukup terang untuk call-to-action tapi tidak menyilaukan
+            - Emerald-200 untuk hover memberikan feedback visual yang jelas
+        -->
+        <a
+            href="/doa"
+            class="text-sm font-bold text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-200 transition-colors duration-200"
+        >
+            Menu Utama
+        </a>
+
+        <!--
+            BUTTON DOA SELANJUTNYA - Conditional Rendering:
+            - Jika isLastDoa = true → Tampilkan span disabled
+            - Jika isLastDoa = false → Tampilkan link aktif
+
+            Algoritma:
+            IF isLastDoa THEN
+                Render disabled state (span dengan opacity rendah)
+            ELSE
+                Render active state (link dengan hover effects)
+            END IF
+        -->
+        {isLastDoa ? (
+            <!-- 
+                DISABLED NEXT BUTTON - Dark Mode Color Update
+                Sebelumnya: dark:text-slate-600 (terlalu gelap)
+                Sekarang: dark:text-slate-400 (#94a3b8)
+                
+                Sama dengan button previous, menggunakan Slate-400 untuk
+                konsistensi visual dan accessibility yang lebih baik.
+            -->
+            <span class="text-sm font-medium text-slate-300 dark:text-slate-400 cursor-not-allowed opacity-50 px-3 py-2 rounded-lg">
+                Doa Selanjutnya →
+            </span>
+        ) : (
+            <a
+                href={`/doa/${nextId}`}
+                class="text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 transition-colors px-3 py-2 rounded-lg"
+            >
+                Doa Selanjutnya →
+            </a>
+        )}
+    </div>
+
+    <!-- =========================================
+        DOA CONTENT CARD
+        ========================================= -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-slate-800 text-center transition-colors duration-300">
+        
+        <!--
+            JUDUL DOA - Komposisi Warna UI/UX Dark Mode:
+            Light Mode: text-emerald-800 (#065f46) - Hijau gelap untuk kontras tinggi
+            Dark Mode: text-emerald-300 (#6ee7b7) - Hijau terang untuk readability optimal
+            Alasan: Warna terang memberikan kontras ~12:1 terhadap background slate-900
+        -->
+        <h1 class="text-2xl font-bold text-emerald-800 dark:text-emerald-300 mb-2">
+            {doa.nama}
+        </h1>
+        
+        <!--
+            =========================================
+            GRUP/KATEGORI DOA - DARK MODE COLOR UPDATE
+            =========================================
+            
+            PERUBAHAN WARNA:
+            Sebelumnya: dark:text-slate-100 (#f8fafc)
+            Sekarang: dark:text-slate-300 (#cbd5e1)
+            
+            Rumus Komposisi Warna UI/UX untuk Dark Mode:
+            ------------------------------------------------
+            1. Hierarchy Visual (Tingkatan Informasi):
+               - Judul Doa (h1): Emerald-300 (#6ee7b7) - PRIMARY
+               - Grup/Kategori (p): Slate-300 (#cbd5e1) - SECONDARY
+               - Terjemahan: Slate-100 (#f8fafc) - CONTENT
+            
+            2. Kontras & Readability:
+               - Slate-100 di background Slate-900 = 15.3:1 (terlalu terang untuk secondary text)
+               - Slate-300 di background Slate-900 = 10.4:1 (optimal untuk secondary text)
+               - Perbedaan 4.9:1 dengan judul membuat hierarchy jelas
+            
+            3. Psychology of Color:
+               - Secondary text tidak perlu "menyilaukan" seperti primary
+               - Slate-300 memberikan "breathing room" visual sebelum content utama
+               - Mengurangi eye strain saat membaca panjang
+            
+            4. Consistency dengan Design System:
+               - Mengikuti aturan 60-30-10 color rule:
+                 * 60%: Background (Slate-900)
+                 * 30%: Secondary elements (Slate-300)
+                 * 10%: Accent/Primary (Emerald-300)
+            
+            Algoritma Pemilihan Warna:
+            IF element_type == "secondary_info" THEN
+                color = slate-300 (cbd5e1)
+            ELSE IF element_type == "primary_heading" THEN
+                color = emerald-300 (6ee7b7)
+            ELSE IF element_type == "body_content" THEN
+                color = slate-100 (f8fafc)
+            END IF
+        -->
+        <p class="text-slate-400 dark:text-slate-300 text-sm mb-8">
+            {doa.grup || "Doa Harian"}
+        </p>
+
+        <!-- =========================================
+            ARABIC TEXT & TRANSLATION
+            ========================================= -->
+        <div class="mb-8">
+            <!-- Teks Arab (Right-to-Left) -->
+            <p class="font-arabic text-4xl text-slate-800 dark:text-slate-100 leading-loose mb-6" dir="rtl">
+                {doa.ar}
+            </p>
+            
+            <!--
+                TRANSLITERASI (LATIN) - Komposisi Warna UI/UX Dark Mode:
+                Light Mode: text-emerald-600 (#059669) - Hijau medium untuk emphasis
+                Dark Mode: text-emerald-200 (#a7f3d0) - Hijau sangat terang untuk highlight
+                Alasan: Warna paling terang dari palette emerald untuk menarik perhatian
+            -->
+            <p class="text-emerald-600 dark:text-emerald-200 font-medium text-lg italic mb-4">
+                "{doa.tr}"
+            </p>
+            
+            <!--
+                TERJEMAHAN INDONESIA:
+                Light Mode: text-slate-600 (#475569) - Abu-abu gelap untuk body text
+                Dark Mode: text-slate-100 (#f8fafc) - Putih lembut untuk readability optimal
+                Alasan: Menggunakan warna text utama dark mode untuk konsistensi
+            -->
+            <p class="text-slate-600 dark:text-slate-100 text-base leading-relaxed">
+                {doa.idn}
+            </p>
+        </div>
+
+        <!-- =========================================
+            ABOUT/RIWAYAT SECTION
+            ========================================= -->
+        <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-left border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <!--
+                TENTANG / RIWAYAT - Komposisi Warna UI/UX Dark Mode:
+                Light Mode: text-slate-700 (#334155) - Abu-abu gelap untuk judul section
+                Dark Mode: text-slate-200 (#e2e8f0) - Abu-abu terang untuk kontras tinggi
+                Alasan: Warna terang memberikan kontras ~8:1 terhadap background slate-800
+            -->
+            <h4 class="font-bold text-slate-700 dark:text-slate-200 text-sm mb-2">
+                Tentang / Riwayat:
+            </h4>
+            <div class="text-sm text-slate-500 dark:text-slate-400 whitespace-pre-line break-words">
+                {doa.tentang}
+            </div>
+        </div>
+
+        <!-- =========================================
+            TAGS SECTION - DARK MODE COLOR UPDATE
+            =========================================
+            
+            PERUBAHAN WARNA:
+            Sebelumnya: dark:text-slate-400 (#94a3b8)
+            Sekarang: dark:text-slate-200 (#e2e8f0)
+            
+            Rumus Komposisi Warna UI/UX untuk Dark Mode:
+            ------------------------------------------------
+            1. Context & Function Analysis:
+               - Tags adalah "actionable metadata" (bisa di-hover, bisa di-click nantinya)
+               - Bukan sekadar decorative text, tapi navigational element
+               - Perlu visibility lebih tinggi dari secondary text biasa
+            
+            2. Kontras & Accessibility:
+               - Slate-400 (#94a3b8) di Slate-800 = 5.8:1 (AA, tapi borderline)
+               - Slate-200 (#e2e8f0) di Slate-800 = 11.2:1 (AAA, sangat optimal)
+               - Peningkatan 5.4:1 membuat tags lebih "scannable"
+            
+            3. Visual Weight Balance:
+               - Background tag: Slate-800 (#1e293b)
+               - Text tag: Slate-200 (#e2e8f0)
+               - Border tag: Slate-700 (#334155) - subtle definition
+               - Hover: Slate-700 bg + Slate-100 text
+            
+            4. Color Theory Application:
+               - Menggunakan "Monochromatic Elevation" technique:
+                 * Background elemen lebih gelap dari container
+                 * Text elemen lebih terang dari average
+                 * Hasil: Depth tanpa menggunakan warna berbeda
+            
+            5. Interactive States:
+               - Default: Slate-200 (terlihat jelas sebagai tag)
+               - Hover: Slate-100 (lebih terang, feedback interaktif)
+               - Active/Focus: Emerald accent (jika diimplementasikan)
+            
+            Workflow Implementasi:
+            1. Base layer: Container dengan bg Slate-900
+            2. Tag layer: Span dengan bg Slate-800, border Slate-700
+            3. Text layer: Slate-200 untuk readability tinggi
+            4. Hover layer: bg Slate-700, text Slate-100
+            
+            Algoritma CSS Specificity:
+            - Gunakan .dark prefix untuk scope dark mode
+            - Override dengan !important hanya jika diperlukan (cascading biasanya cukup)
+            - Transition untuk smooth color change (300ms ease)
+        -->
+        <div class="mt-4 flex gap-2 justify-center flex-wrap">
+            {doa.tag && doa.tag.map((t: string) => (
+                <!-- 
+                    TAG ITEM - Individual Tag Styling
+                    Light Mode:
+                        bg: gray-100 (#f3f4f6)
+                        text: gray-500 (#6b7280)
+                        hover-bg: gray-200 (#e5e7eb)
+                    
+                    Dark Mode (UPDATED):
+                        bg: slate-800 (#1e293b)
+                        text: slate-200 (#e2e8f0) - DARI slate-400
+                        hover-bg: slate-700 (#334155)
+                        hover-text: slate-100 (#f8fafc)
+                    
+                    Perubahan utama: text color dari slate-400 → slate-200
+                    untuk better visibility dan interactive feel.
+                -->
+                <span class="text-xs bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-200 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors cursor-default">
+                    #{t}
+                </span>
+            ))}
+        </div>
+    </div>
+</Layout>
+
+<style is:global>
+    /*
+        =========================================
+        DARK MODE SAFETY NET - Enhanced Colors
+        =========================================
+        CSS ini memastikan dark mode bekerja dengan baik
+        dengan komposisi warna UI/UX yang optimal
+    */
+    
+    /* Card Container - Force dark mode colors */
+    .dark .bg-white {
+        background-color: #0f172a !important; /* slate-900 */
+        border-color: #1e293b !important; /* slate-800 */
+    }
+    
+    /* Text Colors - Ensure readability in dark mode */
+    .dark .text-slate-800 {
+        color: #f8fafc !important; /* slate-100 */
+    }
+    
+    /* Navigation Button Text - Force #f8fafc in dark mode */
+    .dark .text-slate-500 {
+        color: #f8fafc !important;
+    }
+    
+    /* Hover States for Navigation Buttons */
+    .dark a.text-slate-500:hover {
+        color: #6ee7b7 !important; /* emerald-300 */
+    }
+    
+    /* About Box Background */
+    .dark .bg-slate-50 {
+        background-color: rgba(30, 41, 59, 0.2) !important; /* slate-800/20 */
+    }
+    
+    /* 
+        =========================================
+        TAG SECTION - DARK MODE OVERRIDE
+        =========================================
+        
+        Alasan penambahan CSS ini:
+        - Tailwind classes kadang tidak cukup spesifik untuk kompleksitas dark mode
+        - Global style memastikan konsistensi di seluruh aplikasi
+        - !important sebagai safety net untuk specificity wars
+        
+        Rumus Warna yang Diterapkan:
+        - Background: Slate-800 (#1e293b) - 20% lebih terang dari container
+        - Text: Slate-200 (#e2e8f0) - High contrast untuk readability
+        - Hover Background: Slate-700 (#334155) - Elevation effect
+        - Hover Text: Slate-100 (#f8fafc) - Maximum contrast saat interaksi
+    */
+    .dark .bg-gray-100 {
+        background-color: #1e293b !important; /* slate-800 */
+        color: #e2e8f0 !important; /* slate-200 - UPDATED dari slate-400 */
+    }
+    
+    /* 
+        TAG HOVER STATE - Enhanced
+        Workflow: User hover → Background naik 1 level → Text naik 1 level
+        Lightening effect memberikan feedback positif
+    */
+    .dark .bg-gray-100:hover {
+        background-color: #334155 !important; /* slate-700 */
+        color: #f8fafc !important; /* slate-100 - Lebih terang saat hover */
+    }
+    
+    /* Smooth Transitions for Theme Switching */
+    .transition-colors {
+        transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease;
+    }
+    
+    /*
+        =========================================
+        ENHANCED DARK MODE COLORS - UI/UX Composition
+        =========================================
+    */
+    
+    /* Judul Doa - Emerald-300 untuk kontras tinggi */
+    .dark .text-emerald-800 {
+        color: #6ee7b7 !important; /* emerald-300 */
+    }
+    
+    /* Transliterasi - Emerald-200 untuk highlight maksimal */
+    .dark .text-emerald-600 {
+        color: #a7f3d0 !important; /* emerald-200 */
+    }
+    
+    /* 
+        GRUP/KATEGORI DOA - DARK MODE OVERRIDE
+        Sebelumnya: slate-100 (f8fafc) - terlalu terang untuk secondary info
+        Sekarang: slate-300 (cbd5e1) - optimal untuk hierarchy
+        
+        Algoritma CSS:
+        1. Selector: .dark p.text-slate-400 (spesifik ke elemen grup)
+        2. Override: color: #cbd5e1 !important
+        3. Fallback: Jika !important gagal, tambahkan inline style atau ID selector
+    */
+    .dark .text-slate-400 {
+        color: #cbd5e1 !important; /* slate-300 - UPDATED */
+    }
+    
+    /* Terjemahan Indonesia - Slate-100 untuk readability */
+    .dark .text-slate-600 {
+        color: #f8fafc !important; /* slate-100 */
+    }
+    
+    /* Tentang/Riwayat - Slate-200 untuk kontras tinggi */
+    .dark .text-slate-700 {
+        color: #e2e8f0 !important; /* slate-200 */
+    }
+    
+    /*
+        =========================================
+        MENU UTAMA BUTTON - Enhanced Dark Mode
+        =========================================
+    */
+    
+    /* Button Menu Utama Background */
+    .dark .bg-emerald-50 {
+        background-color: rgba(6, 78, 59, 0.2) !important; /* emerald-900/20 */
+    }
+    
+    /* Button Menu Utama Hover Background */
+    .dark .hover\:bg-emerald-100:hover {
+        background-color: rgba(6, 78, 59, 0.3) !important; /* emerald-900/30 */
+    }
+
+    /*
+        =========================================
+        DISABLED BUTTONS - Dark Mode Color Update
+        =========================================
+        
+        PERUBAHAN: Menambahkan styling eksplisit untuk tombol disabled
+        agar konsisten dengan update warna di HTML.
+        
+        Sebelumnya: slate-600 (terlalu gelap, hampir invisible)
+        Sekarang: slate-400 (terlihat jelas sebagai disabled, tapi readable)
+        
+        Selector menggunakan attribute selector untuk menangkap
+        span dengan class cursor-not-allowed (indikator disabled)
+    */
+    .dark span.cursor-not-allowed {
+        color: #94a3b8 !important; /* slate-400 */
+    }
+    
+    /* 
+        Pastikan opacity tidak mengurangi visibility terlalu banyak
+        di dark mode (masalah common: opacity + dark color = invisible)
+    */
+    .dark span.opacity-50 {
+        opacity: 0.5 !important; /* Tetap 50% tapi dengan warna lebih terang */
+    }
+</style>

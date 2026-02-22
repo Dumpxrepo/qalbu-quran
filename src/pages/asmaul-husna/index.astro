@@ -1,0 +1,306 @@
+---
+// ---
+// BAGIAN 1: FRONTMATTER (LOGIKA SERVER-SIDE)
+// ---
+
+// 1. Import Layout utama agar halaman ini memiliki Header, Footer, dan Style global
+import Layout from '../../layouts/Layout.astro';
+
+// 2. Ambil URL API dari Environment Variables yang sudah kita buat di .env
+const apiUrl = import.meta.env.PUBLIC_API_ASMAUL_HUSNA;
+
+// 3. Fetch data dari API eksternal
+// 'await' digunakan karena operasi jaringan (fetch) bersifat asinkron
+const response = await fetch(apiUrl);
+
+// 4. Parse hasil JSON menjadi objek JavaScript
+const result = await response.json();
+
+// 5. Ekstrak array data Asmaul Husna
+// API myquran.com biasanya mengembalikan format { data: [...] }.
+// Kita beri pengecekan keamanan: jika result adalah array, gunakan result, jika objek, ambil result.data
+const asmaulHusnaList = Array.isArray(result) ? result : (result.data || []);
+---
+
+<Layout title="Asmaul Husna | Qalbu">
+    <!-- Container utama dengan spasi vertikal (space-y-6) agar elemen tidak berdempetan -->
+    <div class="space-y-8">
+        
+        <!-- HEADER SECTION -->
+        <!-- Menggunakan class page-header agar style dark token dari Layout.astro berlaku -->
+        <header class="text-center space-y-3 page-header">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">
+                Asmaul Husna
+            </h1>
+            <p class="text-slate-500 font-light max-w-lg mx-auto leading-relaxed">
+                99 Nama-Nama Allah yang indah lagi agung. Mengenalnya adalah bagian dari iman.
+            </p>
+        </header>
+
+        <!-- SEARCH SECTION -->
+        <!-- Wrapper dengan posisi relative untuk menempatkan ikon search dan tombol clear di dalam input -->
+        <div class="relative max-w-lg mx-auto">
+            <input 
+                type="text" 
+                id="search-husna" 
+                placeholder="Cari nama, arti, atau nomor (contoh: Rahman, 1, Pengasih)..." 
+                class="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-sm text-sm md:text-base" 
+            />
+            
+            <!-- Ikon Search (Kiri) -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+
+            <!-- Tombol Clear (Kanan) - Hidden by default, muncul saat ada input -->
+            <button id="clear-husna-btn" class="hidden absolute right-3 top-3 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition-colors focus:outline-none" aria-label="Bersihkan pencarian">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- LIST SECTION -->
+        <!-- Grid responsif: 1 kolom di mobile, 2 kolom di layar medium (md) ke atas -->
+        <div id="husna-container" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            
+            <!-- Loop (Mapping) data Asmaul Husna menjadi kartu HTML -->
+            {asmaulHusnaList.map((item: any) => (
+                <a 
+                    href="#" 
+                    class="husna-card group relative bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center" 
+                    role="listitem" 
+                    aria-label={`Asmaul Husna nomor ${item.id}: ${item.latin}`}
+                >
+                    
+                    <!-- Badge Nomor -->
+                    <div class="absolute top-4 left-4 w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600 transition-colors">
+                        {item.id}
+                    </div>
+
+                    <!-- Konten Utama Kartu -->
+                    <div class="w-full flex flex-col items-center justify-center space-y-3 mt-2">
+                        
+                        <!-- Teks Arab (Diperbesar dan menggunakan font Amiri) -->
+                        <h3 class="font-arabic text-4xl md:text-5xl text-slate-800 leading-loose group-hover:text-emerald-700 transition-colors" dir="rtl">
+                            {item.arab}
+                        </h3>
+
+                        <div class="h-px w-12 bg-slate-200 group-hover:bg-emerald-200 transition-colors"></div>
+
+                        <!-- 
+                          NAMA LATIN dengan dark mode color #f8fafc
+                          Light Mode: slate-700 (Dark Gray)
+                          Dark Mode: #f8fafc (White)
+                        -->
+                        <p class="text-lg font-bold text-slate-700 dark:text-[#f8fafc]">
+                            {item.latin}
+                        </p>
+
+                        <!-- 
+                          ARTI / TERJEMAHAN dengan dark mode color #f8fafc
+                          Light Mode: slate-500 (Medium Gray)
+                          Dark Mode: #f8fafc (White)
+                        -->
+                        <p class="text-sm text-slate-500 font-medium dark:text-[#f8fafc]">
+                            "{item.indo}"
+                        </p>
+                    </div>
+
+                    <!-- Metadata Tersembunyi untuk Search Logic -->
+                    <!-- Berisi: Latin, Nomor (ID), dan Arti agar bisa dicari oleh script JS -->
+                    <span class="hidden search-meta">
+                        {item.latin} {item.id} {item.indo}
+                    </span>
+                </a>
+            ))}
+        </div>
+        
+        <!-- Pesan "Data Tidak Ditemukan" (Default hidden) -->
+        <div id="not-found" class="hidden text-center flex flex-col items-center justify-center space-y-4 text-slate-500 font-medium">Asmaul Husna tidak ditemukan.</div>
+        <!-- <div id="not-found" class="hidden text-center py-20 flex flex-col items-center justify-center space-y-4">
+            <div class="bg-slate-100 rounded-full p-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <p class="text-slate-500 font-medium">Asmaul Husna tidak ditemukan.</p>
+        </div> -->
+    </div>
+</Layout>
+
+<script>
+    // ---
+    // BAGIAN 2: CLIENT-SIDE SCRIPT (INTERAKSI BROWSER)
+    // ---
+    
+    // 1. Query Element DOM dengan tipe TypeScript untuk keamanan
+    const input = document.getElementById('search-husna') as HTMLInputElement | null;
+    const clearBtn = document.getElementById('clear-husna-btn') as HTMLButtonElement | null;
+    const items = Array.from(document.querySelectorAll<HTMLElement>('.husna-card'));
+    const notFound = document.getElementById('not-found') as HTMLElement | null;
+
+    /**
+     * Fungsi Pencarian (Search Algorithm)
+     * @param {string} keyword - Kata kunci yang dicari user
+     * Workflow:
+     * 1. Reset counter item yang cocok.
+     * 2. Loop setiap item kartu (.husna-card).
+     * 3. Ambil teks dari elemen tersembunyi (.search-meta).
+     * 4. Cek apakah keyword ada dalam teks metadata.
+     * 5. Atur properti 'display' (block/none) berdasarkan hasil cek.
+     * 6. Tampilkan pesan 'not found' jika count = 0.
+     */
+    const handleSearch = (keyword: string) => {
+        let visibleCount = 0;
+        
+        items.forEach(item => {
+            // Ambil metadata (Latin, ID, Indo) dan ubah ke lowercase
+            const meta = (item.querySelector('.search-meta')?.textContent || "").toLowerCase();
+            const searchKey = keyword.toLowerCase();
+
+            // Cek apakah metadata mengandung kata kunci pencarian
+            if (meta.includes(searchKey)) {
+                item.style.display = 'flex'; // Tampilkan (karena kartu menggunakan flex layout)
+                visibleCount++;
+            } else {
+                item.style.display = 'none'; // Sembunyikan
+            }
+        });
+
+        // Logika tampilkan pesan "Tidak ditemukan"
+        if (notFound) {
+            notFound.style.display = visibleCount > 0 ? 'none' : 'flex';
+        }
+    };
+
+    // Event Listener: Saat user mengetik di input
+    input?.addEventListener('input', (e) => {
+        const val = (e.target as HTMLInputElement).value;
+        
+        // Tampilkan tombol clear jika ada teks, sembunyikan jika kosong
+        if (val.length > 0) {
+            clearBtn?.classList.remove('hidden');
+        } else {
+            clearBtn?.classList.add('hidden');
+        }
+        
+        // Jalankan fungsi pencarian
+        handleSearch(val);
+    });
+
+    // Event Listener: Saat tombol clear diklik
+    clearBtn?.addEventListener('click', () => {
+        if (!input) return;
+        
+        // Reset input
+        input.value = '';
+        input.focus(); // Kembalikan fokus ke input
+        
+        // Sembunyikan tombol clear
+        clearBtn.classList.add('hidden');
+        
+        // Reset tampilan list ke kondisi awal (semua muncul)
+        handleSearch('');
+    });
+</script>
+
+<style is:global>
+  /* --- 1. Search Input Styling (Global Scope) --- */
+  
+  /* Light Mode Default */
+  #search-husna {
+    background-color: var(--card-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--nav-border) !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+  }
+  /* Placeholder Text Color */
+  #search-husna::placeholder { 
+    color: var(--muted) !important; 
+  }
+
+  /* Dark Mode Overrides */
+  .dark #search-husna {
+    background-color: rgba(255,255,255,0.02) !important; /* Glass effect tipis */
+    color: #f8fafc !important;
+    border-color: rgba(148,163,184,0.12) !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+  }
+
+  /* --- 2. Card Styling (Husna Card) --- */
+
+  /* Warna teks utama di dalam kartu */
+  .husna-card h3, .husna-card p {
+    transition: color 200ms ease;
+  }
+
+  /* Dark Mode: Paksa warna teks Arab dan Latin agar kontras */
+  .dark .husna-card h3 {
+    color: #f1f5f9 !important; /* Slate-100 */
+  }
+
+  /* 
+    =========================================
+    DARK MODE FIX: NAMA LATIN & ARTI
+    =========================================
+    
+    Perubahan: 
+    - Sebelumnya: slate-300 (#cbd5e1) dan slate-400 (#94a3b8)
+    - Sekarang: #f8fafc (White) untuk keduanya
+    
+    Alasan:
+    1. Konsistensi visual - semua teks informasi menggunakan warna putih
+    2. Kontras lebih tinggi dengan background gelap
+    3. Lebih mudah dibaca untuk accessibility
+  */
+
+  /* Nama Latin - Dark Mode Override */
+  .dark .husna-card p.text-slate-700 {
+    color: #f8fafc !important; /* White instead of slate-300 */
+  }
+
+  /* Arti / Terjemahan - Dark Mode Override */
+  .dark .husna-card p.text-slate-500 {
+    color: #f8fafc !important; /* White instead of slate-400 */
+  }
+
+  /* --- 3. Border Color Composition (Mirip halaman Doa) --- */
+  /* 
+     Menggunakan teknik color-mix untuk membuat border yang halus dan elegan 
+     di kedua tema tanpa perlu banyak class conditional.
+  */
+
+  /* Light Mode Border */
+  .husna-card {
+    /* Fallback: Emerald tint 12% + White */
+    border-color: #E1F2ED !important;
+    border-color: color-mix(in srgb, var(--accent) 12%, white) !important;
+  }
+
+  /* Light Mode Hover Border */
+  .husna-card:hover {
+    border-color: #BFE9D7 !important; /* Emerald tint lebih kuat */
+    border-color: color-mix(in srgb, var(--accent) 35%, white) !important;
+  }
+
+  /* Dark Mode Border */
+  .dark .husna-card {
+    /* Fallback: Dark BG + Emerald Accent 40% */
+    border-color: #1B5F50 !important;
+    border-color: color-mix(in srgb, var(--accent) 40%, #0b1220) !important;
+  }
+
+  /* Dark Mode Hover Border */
+  .dark .husna-card:hover {
+    /* Fallback: Dark BG + Emerald Accent 60% (Lebih terang) */
+    border-color: #2AAF87 !important;
+    border-color: color-mix(in srgb, var(--accent) 60%, #0b1220) !important;
+  }
+
+  /* Background Card Dark Mode Override (Glassmorphism) */
+  .dark .husna-card {
+    background-color: rgba(11, 18, 32, 0.6) !important; /* Transparansi sedikit */
+  }
+
+</style>

@@ -1,0 +1,2380 @@
+---
+// src/layouts/Layout.astro
+// Layout utama QALBU — header (navbar), footer, theme logic, dan style global.
+//
+// Fitur tambahan di versi ini:
+// 1. Indikator aktif di Desktop (Garis bawah yang kembali ke posisi aktif saat mouse leave).
+// 2. Indikator aktif di Mobile (Background berbeda).
+// 3. Sinkronisasi warna ikon hamburger dengan tema.
+// 4. Animasi transisi tema yang halus.
+// 5. PERBAIKAN: Logika menu aktif untuk halaman detail surat (/surat/[nomor]).
+// 6. PERBAIKAN KRUSIAL: Safety Net CSS Global untuk memaksa warna di halaman Surat (menggunakan ID Selector).
+// 7. PERBAIKAN MOBILE: Mengatasi warna Header & Area Search Modal yang tidak berubah.
+// 8. PERBAIKAN NAV: Efek hover navigasi menggunakan komposisi warna Accent (Emerald).
+// 9. PERBAIKAN: Background Mobile List dan Teks Ayat di Dark Mode.
+// 10. PERBAIKAN: Animasi hamburger menu dengan transition-all dan dark mode support.
+// 11. PERBAIKAN BARU: Logika menu aktif untuk halaman Doa (/doa dan /doa/[id]).
+// 12. UPDATE: Override warna spesifik tombol navigasi di halaman surat.
+// 13. UPDATE: Styling Glassmorphism/Inset untuk Searchbar di Dark Mode.
+// 14. UPDATE: Menyamakan warna tombol "Daftar Surat" dengan referensi "Menu Utama".
+// 15. PERBAIKAN BUG: Menghapus duplikasi CSS yang menyebabkan warna tombol tidak berubah di default state.
+// 16. TAMBAHAN BARU: Safety Net CSS untuk halaman Jadwal Shalat (Shalat Page Dark Mode Support).
+// 17. TAMBAHAN BARU: Safety Net CSS untuk halaman Jadwal Shalat Detail ([slug].astro).
+// 18. PERBAIKAN: Warna hover tabel pada [slug].astro disamakan dengan index.astro.
+// 19. TAMBAHAN BARU: Social Media Buttons di Footer dengan animasi hover.
+// 20. TAMBAHAN BARU: Dynamic Year pada Copyright Footer (otomatis rentang tahun).
+// 21. PERBAIKAN: Warna teks Copyright di Dark Mode menjadi #f8fafc.
+// 22. TAMBAHAN BARU: Background Music Player dengan Auto-Hide dan Integrasi Scroll-to-Top.
+// 23. TAMBAHAN BARU: Sistem Sinkronisasi Audio Quran & Background Music (Pause/Resume otomatis).
+// 24. OPTIMASI: Single Source of Truth untuk BUILD_YEAR (tidak ada duplikasi konstanta).
+// 25. PERBAIKAN: BUILD_YEAR_CLIENT menggunakan fallback dinamis ke tahun sekarang (tidak hardcoded).
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+
+// Menu utama
+const menuItems = [
+  { name: 'Al-Quran', href: '/' },
+  { name: 'Jadwal Shalat', href: '/shalat' },
+  { name: 'Imsakiyah', href: '/imsakiyah' },
+  { name: 'Asmaul Husna', href: '/asmaul-husna' },
+  { name: 'Doa', href: '/doa' },
+];
+
+// ==========================================
+// LOGIKA DYNAMIC YEAR UNTUK COPYRIGHT
+// ==========================================
+// 
+// PERUBAHAN BARU: Single Source of Truth (Satu Sumber Kebenaran)
+// 
+// Masalah sebelumnya:
+// - Ada 2 konstanta: BUILD_YEAR (server) dan BUILD_YEAR_CLIENT (browser)
+// - Developer harus mengubah 2 tempat jika ingin update tahun
+// 
+// Solusi baru:
+// - Hanya ada 1 konstanta: BUILD_YEAR di server-side
+// - Client-side membaca nilai ini dari DOM attribute (data-build-year)
+// - Jika tahun berubah, cukup ubah BUILD_YEAR di bawah ini
+//
+// Algoritma:
+// 1. BUILD_YEAR = tahun awal pembuatan (ubah ini saja jika perlu)
+// 2. currentYear = tahun saat ini saat build (Astro render time)
+// 3. getYearRange() = fungsi untuk menghasilkan string "2025" atau "2025-2026"
+// 4. yearDisplay = hasil akhir yang ditampilkan di HTML
+//
+// Kenapa di Server-Side (Astro)?
+// - Astro merender HTML di server saat build time
+// - new Date() akan dieksekusi saat build, bukan saat user akses
+// - Untuk aplikasi static, ini berarti tahun diupdate saat redeploy
+// - Untuk real-time update, gunakan client-side script (sudah ada di bawah)
+
+const BUILD_YEAR = 2025; // <<< UBAH HANYA INI JIKA INGIN GANTI TAHUN PEMBUATAN
+
+// Ambil tahun saat ini menggunakan JavaScript Date object
+// Date() adalah built-in object JavaScript untuk manipulasi tanggal/waktu
+// getFullYear() adalah method yang mengembalikan tahun 4 digit (contoh: 2025)
+const currentYear = new Date().getFullYear();
+
+// Fungsi untuk menghasilkan string tahun yang sesuai
+// Parameter: start (number) = tahun mulai, current (number) = tahun sekarang
+// Return: string = "2025" atau "2025-2026"
+const getYearRange = (start: number, current: number): string => {
+  // Logika: Jika tahun sekarang > tahun mulai, tampilkan rentang
+  // Contoh: start=2025, current=2026 → return "2025-2026"
+  // Contoh: start=2025, current=2025 → return "2025"
+  if (current > start) {
+    return `${start}-${current}`;
+  }
+  return `${start}`;
+};
+
+// Panggil fungsi untuk mendapatkan string tahun yang akan ditampilkan
+const yearDisplay = getYearRange(BUILD_YEAR, currentYear);
+
+// ==========================================
+// DATA SOCIAL MEDIA
+// ==========================================
+// Array objek yang berisi data untuk setiap platform social media
+// Struktur: { name, url, icon SVG path, gradient colors (untuk hover effect) }
+
+const socialLinks = [
+  {
+    name: 'Twitter/X',
+    url: 'https://x.com/feriyanto_31978',
+    // SVG Path untuk logo X (Twitter)
+    iconPath: 'M389.2 48h70.6L305.6 224.2 487 464H345L233.7 318.6 106.5 464H35.8L200.7 275.5 26.8 48H172.4L272.9 180.9 389.2 48zM364.4 421.8h39.1L151.1 88h-42L364.4 421.8z',
+    viewBox: '0 0 512 512',
+    height: '1.7em',
+    // Warna untuk dark mode: icon tetap putih, background hitam
+    darkBg: '#000000',
+    // Warna untuk light mode: icon hitam, background abu-abu terang
+    lightBg: '#f1f5f9',
+    lightIcon: '#0f172a'
+  },
+  {
+    name: 'Instagram',
+    url: 'https://www.instagram.com/fawzif_/',
+    // SVG Path untuk logo Instagram
+    iconPath: 'M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z',
+    viewBox: '0 0 448 512',
+    height: '1.5em',
+    // Gradient Instagram: Orange ke Pink ke Purple
+    gradient: 'linear-gradient(72.44deg, #ff7a00 11.92%, #ff0169 51.56%, #d300c5 85.69%)',
+    darkBg: 'linear-gradient(72.44deg, #ff7a00 11.92%, #ff0169 51.56%, #d300c5 85.69%)',
+    lightBg: '#f1f5f9'
+  },
+  {
+    name: 'Facebook',
+    url: 'https://www.facebook.com/fawzi.f.akbar/',
+    // SVG Path untuk logo Facebook
+    iconPath: 'M80 299.3V512H196V299.3h86.5l18-97.8H196V166.9c0-51.7 20.3-71.5 72.7-71.5c16.3 0 29.4 .4 37 1.2V7.9C291.4 4 256.4 0 236.2 0C129.3 0 80 50.5 80 159.4v42.1H14v97.8H80z',
+    viewBox: '0 0 384 512',
+    height: '1.6em',
+    // Warna Facebook Blue
+    color: '#316ff6',
+    darkBg: '#316ff6',
+    lightBg: '#f1f5f9'
+  },
+  {
+    name: 'LinkedIn',
+    url: 'https://www.linkedin.com/in/fawzi-feriyanto-akbar/',
+    // SVG Path untuk logo LinkedIn (simplified)
+    iconPath: 'M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z',
+    viewBox: '0 0 448 512',
+    height: '1.6em',
+    // Warna LinkedIn Blue
+    color: '#0a66c2',
+    darkBg: '#0a66c2',
+    lightBg: '#f1f5f9'
+  },
+  {
+    name: 'GitHub',
+    url: 'https://github.com/Dumpxrepo',
+    // SVG Path untuk logo GitHub
+    iconPath: 'M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z',
+    viewBox: '0 0 496 512',
+    height: '1.6em',
+    // Warna GitHub: Purple gradient untuk dark mode
+    gradient: 'linear-gradient(180deg, rgba(129, 34, 144, 1) 0%, rgba(77, 34, 124, 1) 91%)',
+    darkBg: 'linear-gradient(180deg, rgba(129, 34, 144, 1) 0%, rgba(77, 34, 124, 1) 91%)',
+    lightBg: '#f1f5f9'
+  }
+];
+
+// ==========================================
+// KONFIGURASI BACKGROUND MUSIC
+// ==========================================
+// URL file audio untuk background music
+const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
+---
+<!doctype html>
+<html lang="id" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Aplikasi Al-Quran dan Doa Online" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>{title}</title>
+
+    <!-- Inline Script untuk deteksi tema awal (Mencegah FOUC) -->
+    <script is:inline>
+      const getTheme = () => {
+        try {
+          const stored = localStorage.getItem('theme');
+          if (stored) return stored;
+        } catch (e) {}
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      };
+      const theme = getTheme();
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      document.documentElement.classList.add('theme-init');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.documentElement.classList.remove('theme-init');
+      }));
+    </script>
+  </head>
+
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-inter min-h-screen flex flex-col relative transition-colors duration-500">
+    <!-- NAVBAR -->
+    <header id="nav-wrapper" class="fixed top-0 left-0 w-full z-50 flex justify-center transition-all duration-700 ease-in-out" role="banner">
+      <nav id="nav-content" class="w-full max-w-[100%] bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-10 h-20 flex items-center justify-between transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1)" role="navigation" aria-label="Main navigation">
+
+        <!-- Brand -->
+        <a href="/" class="flex items-center gap-2 group shrink-0 z-10" id="brand">
+          <div class="bg-gradient-to-br from-emerald-600 to-teal-500 text-white p-1.5 rounded-lg shadow-lg transform group-hover:rotate-12 transition-transform">
+            <span class="text-xl">📖</span>
+          </div>
+          <span class="font-bold text-2xl tracking-tighter font-heading">QALBU</span>
+        </a>
+
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex items-center relative gap-2" id="nav-menu-container" role="menubar">
+          <div id="nav-indicator" class="absolute bottom-1 left-0 bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-300 ease-out opacity-0 pointer-events-none" aria-hidden="true" style="height: 3px;"></div>
+
+          {menuItems.map((item) => (
+            <a href={item.href}
+               data-href={item.href}
+               class="nav-link relative z-10 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors duration-300"
+               role="menuitem">
+              {item.name}
+            </a>
+          ))}
+        </div>
+
+        <!-- Right controls -->
+        <div class="flex items-center gap-3 z-10">
+          <!-- Theme Toggle Button -->
+          <button id="theme-toggle" class="relative p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-amber-400 w-10 h-10 overflow-hidden transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/50" aria-label="Ganti Tema">
+            <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 m-auto w-5 h-5 transition-all duration-500 rotate-0 opacity-100 scale-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.0 0 017.5 0z" />
+            </svg>
+            <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 m-auto w-5 h-5 transition-all duration-500 -rotate-90 opacity-0 scale-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+            </svg>
+          </button>
+
+          <button id="mobile-menu-btn" class="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800" aria-label="Menu toggle" aria-expanded="false">
+            <div class="w-6 h-5 relative flex flex-col justify-between items-center">
+              <span id="bar1" class="w-full h-0.5 bg-slate-600 dark:bg-slate-300 transition-all duration-300"></span>
+              <span id="bar2" class="w-full h-0.5 bg-slate-600 dark:bg-slate-300 transition-all duration-300"></span>
+              <span id="bar3" class="w-full h-0.5 bg-slate-600 dark:bg-slate-300 transition-all duration-300"></span>
+            </div>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Mobile menu dropdown -->
+      <div id="mobile-menu" class="hidden absolute top-full left-0 w-full p-4 md:hidden" aria-hidden="true">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-4 flex flex-col gap-2 opacity-0 -translate-y-4 transition-all duration-300">
+          {menuItems.map((item) => (
+            <a href={item.href} class="mobile-nav-item px-4 py-3 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 transition-all" role="menuitem">
+              {item.name}
+            </a>
+          ))}
+        </div>
+      </div>
+    </header>
+
+    <!-- Main content slot -->
+    <main id="main-content" class="flex-1 mx-auto w-full px-4 pt-32 pb-8 transition-colors duration-500">
+      <slot />
+    </main>
+
+    <!-- ==========================================
+         FOOTER DENGAN SOCIAL MEDIA BUTTONS
+         ========================================== -->
+    <footer id="site-footer" class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 transition-colors duration-500" role="contentinfo">
+      <div class="max-w-4xl mx-auto px-4 flex flex-col items-center gap-6">
+        
+        <!-- 
+          SOCIAL MEDIA BUTTONS CONTAINER
+          - Menggunakan flexbox untuk alignment horizontal
+          - Gap 10px (spacing antar button)
+          - Margin bottom untuk spacing dengan copyright
+        -->
+        <div class="social-login-icons" aria-label="Social Media Links">
+          {socialLinks.map((social, index) => (
+            <a 
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="socialcontainer group"
+              aria-label={`Follow on ${social.name}`}
+              title={social.name}
+            >
+              <!-- 
+                ICON CONTAINER - STATE 1 (Default/Visible)
+                - Muncul saat hover (translateY(-70px))
+                - Background sesuai brand color
+              -->
+              <div class={`social-icon-${index + 1} social-icon-animated`}>
+                <svg
+                  viewBox={social.viewBox}
+                  height={social.height}
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="social-svg-icon"
+                  fill="white"
+                >
+                  <path d={social.iconPath}></path>
+                </svg>
+              </div>
+              
+              <!-- 
+                ICON CONTAINER - STATE 2 (Hover/Hidden)
+                - Visible by default
+                - Background: Slate-100 (light) atau Slate-800 (dark)
+                - Icon color: Slate-800 (light) atau White (dark)
+              -->
+              <div class={`social-icon-${index + 1}-${index + 1} social-icon-base`}>
+                <svg
+                  viewBox={social.viewBox}
+                  height={social.height}
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="social-svg-icon-base"
+                >
+                  <path d={social.iconPath}></path>
+                </svg>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        <!-- 
+          COPYRIGHT TEXT
+          - Menggunakan dynamic year dari Astro server-side
+          - Client-side script untuk update real-time (di bawah)
+          - ID "copyright-text" untuk styling spesifik
+          - DATA ATTRIBUTE: data-build-year untuk passing BUILD_YEAR ke client-side
+        -->
+        <p class="text-center text-sm text-slate-500 dark:text-slate-400" id="copyright-text">
+          &copy; <span id="year-display" data-build-year={BUILD_YEAR}>{yearDisplay}</span> Qalbu App. Dibuat dengan Astro & Cloudflare.
+        </p>
+      </div>
+    </footer>
+
+    <!-- ==========================================
+         BACKGROUND MUSIC & TOGGLE BUTTON (UPDATED)
+         ==========================================
+         
+         UPDATE: Implementasi logika dari kode kedua (1562 baris) ke kode ini.
+         
+         Perubahan utama:
+         1. Menggunakan class-based toggle (music-btn-visible) alih-alih inline style
+         2. Menggunakan class .shift-up untuk position adjustment
+         3. Icon toggle menggunakan hidden class (sederhana dan reliable)
+         4. Struktur HTML yang lebih clean
+    -->
+    
+    <!-- 1. Elemen Audio Tersembunyi -->
+    <!-- 
+      - preload="auto": Memuat audio saat halaman load.
+      - loop: Memutar terus-menerus.
+      - src: Link lagu dari Catbox.
+    -->
+    <audio id="bg-music" loop preload="auto">
+      <source src={BACKGROUND_MUSIC_URL} type="audio/mpeg">
+      Browser Anda tidak mendukung elemen audio.
+    </audio>
+
+    <!-- 2. Tombol Toggle Music (Updated Implementation) -->
+    <!-- 
+      IMPLEMENTASI BARU: Menggunakan class-based approach dari kode kedua
+      
+      Class:
+      - .music-btn: Styling dasar dan posisi (fixed, bottom-6 right-6)
+      - .music-btn-visible: Trigger untuk animasi masuk (translateX(0))
+      - .shift-up: Trigger untuk naik ke atas saat scroll button muncul
+      
+      Z-index: 39 (di bawah scroll button z-40)
+    -->
+    <button id="music-toggle-btn" class="music-btn" aria-label="Toggle Background Music" aria-pressed="true">
+      <div class="icon-wrapper">
+        <!-- Icon Pause (Tampil saat musik sedang play) -->
+        <!-- Default: Icon Pause terlihat (musik auto-play) -->
+        <svg id="icon-pause" class="music-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+        </svg>
+        
+        <!-- Icon Play (Tampil saat musik pause) -->
+        <!-- Default: Icon Play tersembunyi -->
+        <svg id="icon-play" class="music-icon hidden" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </div>
+    </button>
+
+    <!-- Scroll to top button -->
+    <button id="scrollToTopBtn" class="fixed bottom-6 right-6 z-40 w-12 h-12 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-10 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer group" aria-label="Kembali ke atas">
+      <svg class="absolute top-0 left-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" class="text-emerald-800 opacity-20"/>
+        <circle id="progress-circle" cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" stroke-dasharray="283" stroke-dashoffset="283" stroke-linecap="round" class="text-white"/>
+      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+      </svg>
+    </button>
+
+    <!-- RUN-TIME SCRIPTS (Logic & Interactions) -->
+    <script>
+      // ==========================================
+      // TYPE DEFINITIONS & INTERFACES
+      // ==========================================
+      // Mendefinisikan tipe data untuk CustomEvent dengan detail property
+      // Ini memperbaiki error TypeScript "Property 'detail' does not exist on type 'Event'"
+      
+      interface QuranAudioEventDetail {
+        surahNumber?: number;
+        ayahNumber?: number;
+        timestamp?: number;
+      }
+
+      interface QuranAudioEvent extends CustomEvent {
+        detail: QuranAudioEventDetail;
+      }
+
+      // ==========================================
+      // 1. Element Querying (Type-Safe)
+      // ==========================================
+      // Mengambil referensi ke DOM elements dengan type assertion
+      // Type assertion "as" memberitahu TypeScript tipe spesifik element
+      
+      const themeBtn = document.getElementById('theme-toggle') as HTMLButtonElement | null;
+      const sunIcon = document.getElementById('sun-icon') as SVGElement | null;
+      const moonIcon = document.getElementById('moon-icon') as SVGElement | null;
+      const navContent = document.getElementById('nav-content') as HTMLElement | null;
+      const navWrapper = document.getElementById('nav-wrapper') as HTMLElement | null;
+      const menuContainer = document.getElementById('nav-menu-container') as HTMLElement | null;
+      const indicator = document.getElementById('nav-indicator') as HTMLElement | null;
+      
+      // Menggunakan querySelectorAll untuk mendapatkan NodeList dari elements
+      // NodeList adalah collection yang mirip array tetapi bukan array
+      const navLinks = document.querySelectorAll<HTMLAnchorElement>('.nav-link');
+      const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.mobile-nav-item');
+
+      const menuBtn = document.getElementById('mobile-menu-btn') as HTMLButtonElement | null;
+      const mobileMenu = document.getElementById('mobile-menu') as HTMLElement | null;
+      const menuInner = mobileMenu ? mobileMenu.querySelector('div') as HTMLElement | null : null;
+      const b1 = document.getElementById('bar1') as HTMLElement | null;
+      const b2 = document.getElementById('bar2') as HTMLElement | null;
+      const b3 = document.getElementById('bar3') as HTMLElement | null;
+      const scrollBtn = document.getElementById('scrollToTopBtn') as HTMLElement | null;
+      const progressCircle = document.getElementById('progress-circle') as SVGCircleElement | null;
+      const CIRCUMFERENCE = 283;
+
+      // ==========================================
+      // 2. BACKGROUND MUSIC LOGIC (UPDATED)
+      // ==========================================
+      // IMPLEMENTASI: Menggunakan pattern dari kode kedua (1562 baris)
+      
+      // --- 2.1 Element References ---
+      const bgMusic = document.getElementById('bg-music') as HTMLAudioElement | null;
+      const musicBtn = document.getElementById('music-toggle-btn') as HTMLButtonElement | null;
+      const iconPause = document.getElementById('icon-pause') as SVGElement | null;
+      const iconPlay = document.getElementById('icon-play') as SVGElement | null;
+      
+      // --- 2.2 State Management ---
+      /**
+       * wasPlayingBeforeQuran: Boolean flag untuk menyimpan state music sebelum Quran play
+       * - true = music sedang play, lalu Quran mulai -> pause music -> simpan true
+       * - false = music sudah pause sebelum Quran play -> tetap pause -> simpan false
+       * 
+       * Tujuan: Agar ketika Quran selesai, music kembali ke state semula (tidak selalu play)
+       */
+      let wasPlayingBeforeQuran = false;
+      
+      /**
+       * isQuranPlaying: Boolean flag untuk melacak apakah audio Quran sedang aktif
+       * Digunakan untuk mencegah user manual toggle music saat Quran play
+       */
+      let isQuranPlaying = false;
+      
+      // Timer untuk auto-hide button
+      // NodeJS.Timeout di Node.js, number di browser
+      let musicHideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+      // --- 2.3 Core Functions ---
+      
+      /**
+       * Fungsi: showMusicBtn()
+       * Deskripsi: Menampilkan tombol musik dengan animasi slide dari kanan
+       * Algoritma:
+       * 1. Tambahkan class 'music-btn-visible' ke element (CSS: transform: translateX(0))
+       * 2. Clear timer yang sedang berjalan (jika ada)
+       * 3. Set timer baru untuk auto-hide setelah 3 detik
+       * 
+       * CSS yang terlibat:
+       * - .music-btn: default transform: translateX(150%) - di luar layar kanan
+       * - .music-btn.music-btn-visible: transform: translateX(0) - masuk ke layar
+       * - transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)
+       */
+      const showMusicBtn = () => {
+        if (!musicBtn) return;
+        
+        // Tambah class 'visible' untuk animasi masuk (CSS: translateX(0))
+        musicBtn.classList.add('music-btn-visible');
+        
+        // Reset timer setiap kali ada aktivitas
+        // clearTimeout(null) adalah safe operation di JavaScript
+        if (musicHideTimeout) {
+          clearTimeout(musicHideTimeout);
+        }
+        
+        // Set timer baru: sembunyikan setelah 3 detik tidak ada aktivitas
+        // window.setTimeout digunakan untuk clarity (browser environment)
+        musicHideTimeout = window.setTimeout(() => {
+          // Hapus class 'visible' untuk animasi keluar (CSS: translateX(150%))
+          musicBtn?.classList.remove('music-btn-visible');
+        }, 3000); // 3000ms = 3 detik
+      };
+
+      /**
+       * Fungsi: updateMusicIcon(isPlaying: boolean)
+       * Deskripsi: Mengupdate tampilan icon berdasarkan status pemutaran
+       * Parameter: isPlaying - true jika sedang play, false jika pause
+       * Algoritma:
+       * 1. Jika isPlaying = true:
+       *    - Tampilkan icon Pause (remove class 'hidden')
+       *    - Sembunyikan icon Play (add class 'hidden')
+       * 2. Jika isPlaying = false:
+       *    - Tampilkan icon Play (remove class 'hidden')
+       *    - Sembunyikan icon Pause (add class 'hidden')
+       * 
+       * Note: Menggunakan class 'hidden' yang mengatur display: none
+       * dengan transisi opacity untuk animasi smooth
+       */
+      const updateMusicIcon = (isPlaying: boolean) => {
+        if (isPlaying) {
+          // Jika Play: Tampilkan icon Pause, sembunyikan icon Play
+          iconPause?.classList.remove('hidden');
+          iconPlay?.classList.add('hidden');
+        } else {
+          // Jika Pause: Tampilkan icon Play, sembunyikan icon Pause
+          iconPause?.classList.add('hidden');
+          iconPlay?.classList.remove('hidden');
+        }
+      };
+
+      /**
+       * Fungsi: pauseBackgroundMusic()
+       * Deskripsi: Menghentikan background music dan update UI
+       * Algoritma:
+       * 1. Cek apakah bgMusic tersedia
+       * 2. Simpan state saat ini ke wasPlayingBeforeQuran (untuk resume nanti)
+       * 3. Pause audio
+       * 4. Update icon ke "Play" (karena sekarang music pause)
+       * 5. Set flag isQuranPlaying = true
+       */
+      const pauseBackgroundMusic = () => {
+        if (!bgMusic) return;
+        
+        // Simpan state sebelum pause (untuk resume nanti)
+        wasPlayingBeforeQuran = !bgMusic.paused;
+        
+        // Pause music
+        bgMusic.pause();
+        
+        // Update UI: icon Play (karena music sekarang pause)
+        updateMusicIcon(false);
+        
+        // Set flag
+        isQuranPlaying = true;
+        
+        console.log('[Audio Manager] Background music paused. Was playing:', wasPlayingBeforeQuran);
+      };
+
+      /**
+       * Fungsi: resumeBackgroundMusic()
+       * Deskripsi: Melanjutkan background music jika sebelumnya sedang play
+       * Algoritma:
+       * 1. Cek apakah bgMusic tersedia
+       * 2. Cek wasPlayingBeforeQuran (apakah sebelumnya play?)
+       * 3. Jika ya, play music dan update icon ke Pause
+       * 4. Set flag isQuranPlaying = false
+       */
+      const resumeBackgroundMusic = () => {
+        if (!bgMusic) return;
+        
+        // Hanya resume jika sebelumnya memang sedang play
+        if (wasPlayingBeforeQuran) {
+          bgMusic.play().catch((err: Error) => {
+            console.log('[Audio Manager] Autoplay blocked on resume:', err);
+          });
+          updateMusicIcon(true);
+        }
+        
+        // Reset flags
+        isQuranPlaying = false;
+        wasPlayingBeforeQuran = false;
+        
+        console.log('[Audio Manager] Background music resumed.');
+      };
+
+      // --- 2.4 Event Listeners Setup ---
+      
+      /**
+       * Event: Click pada tombol music (Manual Toggle)
+       * Algoritma:
+       * 1. Cek apakah Quran sedang play -> jika ya, abaikan atau warning
+       * 2. Jika tidak, toggle play/pause seperti biasa
+       * 3. Reset inactivity timer (karena user berinteraksi)
+       * 
+       * Error Handling:
+       * - play() mengembalikan Promise yang bisa reject jika autoplay diblok
+       * - Gunakan .catch() untuk handle error gracefully
+       */
+      musicBtn?.addEventListener('click', () => {
+        // CEGAH: Jika Quran sedang play, jangan izinkan toggle manual
+        if (isQuranPlaying) {
+          console.log('[Audio Manager] Cannot toggle music while Quran is playing');
+          // Optional: Tampilkan visual feedback (shake button, toast, dll)
+          musicBtn.classList.add('shake-animation');
+          setTimeout(() => musicBtn.classList.remove('shake-animation'), 500);
+          return;
+        }
+        
+        if (!bgMusic) return;
+        
+        if (bgMusic.paused) {
+          // Jika sedang pause, mainkan musik
+          // play() mengembalikan Promise<void>
+          bgMusic.play().then(() => {
+            // Sukses: Update icon ke Pause (sedang playing)
+            updateMusicIcon(true);
+          }).catch((err: Error) => {
+            // Gagal: Mungkin karena autoplay policy
+            console.log("Autoplay blocked on interaction:", err);
+            // Tetap tampilkan icon Play karena belum playing
+            updateMusicIcon(false);
+          });
+        } else {
+          // Jika sedang play, pause musik
+          bgMusic.pause();
+          // Update icon ke Play
+          updateMusicIcon(false);
+        }
+        
+        // Reset timer karena user berinteraksi dengan button
+        showMusicBtn();
+      });
+
+      /**
+       * Inisialisasi: Autoplay saat halaman dimuat
+       * Algoritma:
+       * 1. Set volume ke 50% (0.5)
+       * 2. Coba play otomatis
+       * 3. Jika berhasil: update icon ke Pause
+       * 4. Jika gagal (browser block): update icon ke Play, tunggu user klik
+       * 
+       * Browser Policy Note:
+       * - Chrome/Firefox biasanya block autoplay dengan sound
+       * - User perlu berinteraksi dengan halaman dulu sebelum audio bisa play
+       */
+      if (bgMusic) {
+        bgMusic.volume = 0.5; // Set volume default 50%
+        
+        // Coba autoplay saat load
+        bgMusic.play().then(() => {
+          // Sukses autoplay: Tampilkan icon Pause
+          updateMusicIcon(true);
+        }).catch(() => {
+          // Gagal autoplay (browser policy): Tampilkan icon Play
+          // User harus klik tombol sekali untuk memulai
+          updateMusicIcon(false);
+        });
+      }
+
+      /**
+       * Event: Activity Detection untuk Auto-Hide
+       * Algoritma:
+       * 1. Daftar event yang dianggap "aktivitas": mousemove, scroll, touchstart, click
+       * 2. Attach event listener ke window untuk setiap event
+       * 3. Saat event terjadi, panggil showMusicBtn() (akan reset timer)
+       * 
+       * Performance Note:
+       * - Event listener menggunakan { passive: true } untuk scroll/touch
+       * - Tidak menggunakan capture phase (default bubble)
+       */
+      const interactionEvents: string[] = ['mousemove', 'scroll', 'touchstart', 'click'];
+      interactionEvents.forEach((event: string) => {
+        // Gunakan passive: true untuk event scroll dan touch untuk performa lebih baik
+        const options: boolean | { passive: boolean } = (event === 'scroll' || event === 'touchstart') ? { passive: true } : false;
+        window.addEventListener(event, showMusicBtn, options);
+      });
+
+      /**
+       * EVENT LISTENER: Global Custom Events dari halaman Surat
+       * 
+       * KONSEP: CustomEvent adalah fitur JavaScript untuk membuat event sendiri.
+       * - dispatchEvent: Mengirim event (dari child component)
+       * - addEventListener: Mendengarkan event (di parent component)
+       * 
+       * Ini memungkinkan komunikasi antara [nomor].astro dan Layout.astro
+       * meskipun mereka terpisah dalam hierarki DOM.
+       * 
+       * PERBAIKAN ERROR: Menggunakan type assertion (as QuranAudioEvent)
+       * untuk memberitahu TypeScript bahwa event ini memiliki property detail
+       */
+      
+      // Dengarkan event 'quran-audio-started' dari halaman surat
+      window.addEventListener('quran-audio-started', ((e: Event) => {
+        // Type assertion untuk mengakses property detail
+        const customEvent = e as QuranAudioEvent;
+        console.log('[Audio Manager] Received event: quran-audio-started', customEvent.detail);
+        pauseBackgroundMusic();
+      }) as EventListener);
+
+      // Dengarkan event 'quran-audio-stopped' dari halaman surat
+      window.addEventListener('quran-audio-stopped', ((e: Event) => {
+        // Type assertion untuk mengakses property detail
+        const customEvent = e as QuranAudioEvent;
+        console.log('[Audio Manager] Received event: quran-audio-stopped', customEvent.detail);
+        resumeBackgroundMusic();
+      }) as EventListener);
+
+      // ==========================================
+      // 3. THEME LOGIC (EXISTING)
+      // ==========================================
+      /**
+       * Fungsi: updateIcons(isDark: boolean)
+       * Deskripsi: Mengupdate tampilan icon sun/moon berdasarkan tema
+       * Parameter: isDark - true jika dark mode aktif
+       * 
+       * Algoritma Animasi:
+       * - Sun Icon: Rotate 90deg, scale 0, opacity 0 (hidden)
+       * - Moon Icon: Rotate 0deg, scale 1, opacity 1 (visible)
+       * - Transition: 500ms untuk semua properties
+       */
+      const updateIcons = (isDark: boolean) => {
+        if (isDark) {
+          // Dark mode: Sembunyikan sun, tampilkan moon
+          sunIcon?.classList.add('rotate-90', 'scale-0', 'opacity-0');
+          sunIcon?.classList.remove('rotate-0', 'scale-100', 'opacity-100');
+          moonIcon?.classList.remove('-rotate-90', 'scale-0', 'opacity-0');
+          moonIcon?.classList.add('rotate-0', 'scale-100', 'opacity-100');
+        } else {
+          // Light mode: Tampilkan sun, sembunyikan moon
+          sunIcon?.classList.remove('rotate-90', 'scale-0', 'opacity-0');
+          sunIcon?.classList.add('rotate-0', 'scale-100', 'opacity-100');
+          moonIcon?.classList.add('-rotate-90', 'scale-0', 'opacity-0');
+          moonIcon?.classList.remove('rotate-0', 'scale-100', 'opacity-100');
+        }
+      };
+
+      // Inisialisasi icon berdasarkan tema saat ini
+      updateIcons(document.documentElement.classList.contains('dark'));
+
+      // Event listener untuk tombol tema
+      themeBtn?.addEventListener('click', () => {
+        const isNowDark = document.documentElement.classList.toggle('dark');
+        try { 
+          localStorage.setItem('theme', isNowDark ? 'dark' : 'light'); 
+        } catch(e) {
+          // Silent fail jika localStorage tidak tersedia
+        }
+        updateIcons(isNowDark);
+      });
+
+      // ==========================================
+      // 4. DESKTOP ACTIVE LINK INDICATOR LOGIC (EXISTING)
+      // ==========================================
+      /**
+       * Variabel: activeDesktopLink
+       * Tipe: HTMLAnchorElement | null
+       * Deskripsi: Menyimpan referensi ke link yang sedang aktif
+       * 
+       * null adalah tipe yang valid di TypeScript untuk merepresentasikan
+       * "tidak ada nilai" atau "belum diinisialisasi"
+       */
+      let activeDesktopLink: HTMLAnchorElement | null = null;
+      
+      /**
+       * Fungsi: moveIndicatorTo(target: HTMLAnchorElement)
+       * Deskripsi: Memindahkan indicator garis bawah ke posisi target link
+       * Parameter: target - element anchor yang menjadi target
+       * 
+       * Algoritma Geometri:
+       * 1. Hitung posisi left relative terhadap container
+       * 2. Ambil width dari target element
+       * 3. Apply transform translateX dan width ke indicator
+       * 
+       * PERBAIKAN ERROR: Menambahkan null check untuk indicator
+       * untuk menghindari error "indicator is possibly 'null'"
+       */
+      const moveIndicatorTo = (target: HTMLAnchorElement) => {
+        if (!indicator || !menuContainer) return;
+        
+        // getBoundingClientRect() mengembalikan DOMRect dengan posisi dan ukuran
+        const containerLeft = menuContainer.getBoundingClientRect().left;
+        const targetRect = target.getBoundingClientRect();
+        
+        // Hitung posisi relative
+        const left = targetRect.left - containerLeft;
+        const width = targetRect.width;
+        
+        // Apply style dengan template literal
+        indicator.style.width = `${width}px`;
+        indicator.style.transform = `translateX(${left}px)`;
+        indicator.style.opacity = '1';
+      };
+
+      // Get current path dan normalisasi (remove trailing slashes)
+      const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+      
+      /**
+       * Loop: navLinks.forEach
+       * Deskripsi: Iterasi setiap link navigasi untuk menentukan yang aktif
+       * 
+       * Logika Penentuan Menu Aktif:
+       * 1. Exact match: href === currentPath
+       * 2. Homepage aktif untuk /surat pages
+       * 3. Doa menu aktif untuk /doa dan /doa/[id]
+       * 4. Shalat menu aktif untuk /shalat dan /shalat/[slug]
+       */
+      navLinks.forEach((link: HTMLAnchorElement) => {
+        // Get href dari data-href atau href attribute
+        const href = (link.getAttribute('data-href') || link.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+        let isActive = false;
+        
+        // Check for exact match
+        if (href === currentPath) {
+          isActive = true;
+        }
+        // Special case: Homepage active untuk /surat pages
+        else if (href === '/' && currentPath.startsWith('/surat')) {
+          isActive = true;
+        }
+        // Special case: Doa menu active untuk /doa dan /doa/[id] pages
+        else if (href === '/doa' && currentPath.startsWith('/doa')) {
+          isActive = true;
+        }
+        // Special case: Shalat menu active untuk /shalat dan /shalat/[slug] pages
+        else if (href === '/shalat' && currentPath.startsWith('/shalat')) {
+          isActive = true;
+        }
+
+        if (isActive) {
+          // Add active styles menggunakan classList API
+          link.classList.add('text-emerald-600', 'dark:text-emerald-400', 'font-bold');
+          activeDesktopLink = link;
+          
+          // requestAnimationFrame untuk memastikan DOM sudah siap
+          requestAnimationFrame(() => moveIndicatorTo(link));
+        } else {
+          // Remove active styles
+          link.classList.remove('text-emerald-600', 'dark:text-emerald-400', 'font-bold');
+        }
+        
+        // Add hover listener untuk move indicator
+        link.addEventListener('mouseenter', () => moveIndicatorTo(link));
+      });
+
+      // Reset indicator ke active link saat mouse leave menu
+      menuContainer?.addEventListener('mouseleave', () => {
+        if (activeDesktopLink) {
+          moveIndicatorTo(activeDesktopLink);
+        } else if (indicator) {
+          // PERBAIKAN: Null check sebelum mengakses style
+          indicator.style.opacity = '0';
+        }
+      });
+
+      // ==========================================
+      // 5. MOBILE ACTIVE LINK LOGIC (EXISTING)
+      // ==========================================
+      /**
+       * Loop: mobileLinks.forEach
+       * Deskripsi: Sama dengan desktop tetapi untuk mobile menu
+       * Perbedaan: Menggunakan class 'mobile-nav-item-active' untuk styling
+       */
+      mobileLinks.forEach((link: HTMLAnchorElement) => {
+        const href = (link.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+        let isActive = false;
+        
+        // Check for exact match
+        if (href === currentPath) {
+          isActive = true;
+        }
+        // Special case: Homepage active untuk /surat pages
+        else if (href === '/' && currentPath.startsWith('/surat')) {
+          isActive = true;
+        }
+        // Special case: Doa menu active untuk /doa dan /doa/[id] pages
+        else if (href === '/doa' && currentPath.startsWith('/doa')) {
+          isActive = true;
+        }
+        // Special case: Shalat menu active untuk /shalat dan /shalat/[slug] pages
+        else if (href === '/shalat' && currentPath.startsWith('/shalat')) {
+          isActive = true;
+        }
+        
+        if (isActive) {
+          link.classList.add('mobile-nav-item-active');
+        } else {
+          link.classList.remove('mobile-nav-item-active');
+        }
+      });
+
+      // ==========================================
+      // 6. MOBILE MENU INTERACTION (EXISTING)
+      // ==========================================
+      /**
+       * Variabel: isMenuOpen
+       * Tipe: boolean
+       * Deskripsi: State untuk melacak status mobile menu (buka/tutup)
+       */
+      let isMenuOpen = false;
+      
+      /**
+       * Event: Click pada mobile menu button
+       * Algoritma Toggle:
+       * 1. Toggle state isMenuOpen
+       * 2. Update aria-expanded untuk accessibility
+       * 3. Jika buka: remove hidden, animate in
+       * 4. Jika tutup: animate out, add hidden setelah delay
+       */
+      menuBtn?.addEventListener('click', () => {
+        isMenuOpen = !isMenuOpen;
+        menuBtn?.setAttribute('aria-expanded', String(isMenuOpen));
+        
+        if (isMenuOpen) {
+          // Buka menu
+          mobileMenu?.classList.remove('hidden');
+          // Small delay untuk memastikan transition berjalan
+          setTimeout(() => {
+            menuInner?.classList.replace('opacity-0', 'opacity-100');
+            menuInner?.classList.replace('-translate-y-4', 'translate-y-0');
+          }, 10);
+          
+          // Animasi hamburger ke X
+          b1?.classList.add('rotate-45', 'translate-y-2');
+          b2?.classList.add('opacity-0');
+          b3?.classList.add('-rotate-45', '-translate-y-2');
+        } else {
+          // Tutup menu
+          menuInner?.classList.replace('opacity-100', 'opacity-0');
+          menuInner?.classList.replace('translate-y-0', '-translate-y-4');
+          
+          // Delay sebelum add hidden untuk menunggu animasi selesai
+          setTimeout(() => mobileMenu?.classList.add('hidden'), 300);
+          
+          // Reset hamburger animation
+          b1?.classList.remove('rotate-45', 'translate-y-2');
+          b2?.classList.remove('opacity-0');
+          b3?.classList.remove('-rotate-45', '-translate-y-2');
+        }
+      });
+
+      // ==========================================
+      // 7. SCROLL LOGIC (EXISTING + UPDATED)
+      // ==========================================
+      /**
+       * Event: Scroll
+       * Deskripsi: Handle multiple behaviors saat scrolling
+       * 
+       * Behaviors:
+       * 1. Navbar pill effect (is-pill class)
+       * 2. Scroll progress indicator (stroke-dashoffset)
+       * 3. Show/hide scroll to top button
+       * 4. Position adjustment untuk music button
+       */
+      window.addEventListener('scroll', () => {
+        const scrolled = window.scrollY > 20;
+        
+        // Navbar pill effect
+        if (scrolled) {
+          navContent?.classList.add('is-pill');
+          navWrapper?.classList.add('py-2');
+        } else {
+          navContent?.classList.remove('is-pill');
+          navWrapper?.classList.remove('py-2');
+        }
+        
+        // Scroll progress calculation
+        const winScroll = window.scrollY;
+        const height = document.documentElement.scrollHeight - window.innerHeight;
+        const scrolledPercent = (winScroll / (height || 1)) * 100;
+        
+        // Update progress circle
+        if (progressCircle) {
+          progressCircle.style.strokeDashoffset = `${CIRCUMFERENCE - (scrolledPercent / 100) * CIRCUMFERENCE}`;
+        }
+        
+        // Show/hide scroll to top button
+        if (winScroll > 300) {
+          scrollBtn?.classList.replace('opacity-0', 'opacity-100');
+          scrollBtn?.classList.replace('translate-y-10', 'translate-y-0');
+          
+          // UPDATED: Gunakan class .shift-up alih-alih inline style
+          musicBtn?.classList.add('shift-up');
+        } else {
+          scrollBtn?.classList.replace('opacity-100', 'opacity-0');
+          scrollBtn?.classList.replace('translate-y-0', 'translate-y-10');
+          
+          // UPDATED: Hapus class .shift-up untuk kembalikan ke posisi default
+          musicBtn?.classList.remove('shift-up');
+        }
+      });
+      
+      // Scroll to top functionality
+      scrollBtn?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // ==========================================
+      // CLIENT-SIDE DYNAMIC YEAR UPDATE (OPSI A - FALLBACK DINAMIS)
+      // ==========================================
+      /**
+       * PERUBAHAN BARU: Single Source of Truth untuk BUILD_YEAR dengan Fallback Dinamis
+       * 
+       * Masalah sebelumnya:
+       * - const BUILD_YEAR_CLIENT = parseInt(yearDisplay?.dataset.buildYear || '2025', 10);
+       * - Ada hardcoded '2025' sebagai fallback
+       * 
+       * Solusi baru (OPSI A):
+       * - Jika data-build-year tidak ada, gunakan tahun sekarang (new Date().getFullYear())
+       * - Tidak ada hardcoded tahun di client-side
+       * 
+       * Algoritma:
+       * 1. Ambil element #year-display
+       * 2. Coba baca data-build-year dari attribute (dari server)
+       * 3. Jika tidak ada, gunakan new Date().getFullYear() sebagai fallback
+       * 4. parseInt() mengkonversi string ke number
+       * 
+       * Keuntungan:
+       * - Tidak ada duplikasi konstanta tahun
+       * - Selalu valid (tidak mungkin NaN)
+       * - Jika server lupa set attribute, client tetap berfungsi
+       * 
+       * Kode:
+       * const BUILD_YEAR_CLIENT = parseInt(
+       *   yearDisplay?.dataset.buildYear || new Date().getFullYear().toString(), 
+       *   10
+       * );
+       */
+      
+      // Ambil element span yang menampilkan tahun
+      const yearDisplay = document.getElementById('year-display');
+      
+      // OPSI A: Fallback ke tahun sekarang jika data-build-year tidak ada
+      // parseInt() mengkonversi string ke number dengan radix 10 (desimal)
+      // new Date().getFullYear() mengembalikan tahun 4 digit saat ini
+      // toString() mengkonversi number ke string untuk parseInt()
+      const BUILD_YEAR_CLIENT = parseInt(
+        yearDisplay?.dataset.buildYear || new Date().getFullYear().toString(), 
+        10
+      );
+      
+      // Ambil tahun saat ini di browser (real-time)
+      const currentYearClient = new Date().getFullYear();
+      
+      // Update DOM jika perlu
+      if (yearDisplay) {
+        // Logika sama dengan server-side: jika tahun berbeda, tampilkan rentang
+        if (currentYearClient > BUILD_YEAR_CLIENT) {
+          yearDisplay.textContent = `${BUILD_YEAR_CLIENT}-${currentYearClient}`;
+        } else {
+          yearDisplay.textContent = `${BUILD_YEAR_CLIENT}`;
+        }
+      }
+    </script>
+
+    <!-- GLOBAL STYLES & THEME TOKENS -->
+    <style is:global>
+      :root {
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #0f172a;
+        --muted: #6b7280;
+        --accent: #059669;
+        --nav-border: rgba(226,232,240,0.7);
+        --pill-bg: rgba(255,255,255,0.7);
+        --ripple-color: rgba(6, 95, 70, 0.08);
+      }
+      .dark {
+        --bg: #0f1724;
+        --card-bg: #0b1220;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #34d399;
+        --nav-border: rgba(30,41,59,0.6);
+        --pill-bg: rgba(15,23,42,0.8);
+        --ripple-color: rgba(56,189,248,0.06);
+      }
+
+      html, body, #main-content {
+        background-color: var(--bg) !important;
+        color: var(--text) !important;
+      }
+
+      /* Base Elements Override */
+      #nav-content, #mobile-menu > div, #site-footer, .surat-card, #search-input {
+        background-color: var(--card-bg) !important;
+        border-color: var(--nav-border) !important;
+        color: var(--text) !important;
+      }
+
+      /* 
+         =========================================
+         SAFETY NET: FORCE DARK MODE SURAT PAGE
+         =========================================
+      */
+      
+      /* 1. Sidebar Header "Daftar Surat" */
+      .dark #sidebar-header {
+        background-color: rgba(11, 18, 32, 0.85) !important;
+        color: #f8fafc !important;
+        border-color: rgba(30, 41, 59, 0.6) !important;
+      }
+
+      /* 2. Searchbar Sidebar Desktop & Mobile */
+      .dark #sidebar-search, .dark #mobile-sidebar-search {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+        color: #f8fafc !important;
+        border-color: rgba(148, 163, 184, 0.12) !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+      }
+
+      /* 3. Navigation Buttons Wrapper */
+      .dark #nav-actions {
+        background-color: rgba(11, 18, 32, 0.85) !important;
+        border-color: rgba(30, 41, 59, 0.6) !important;
+      }
+      
+      /* 
+         PERBAIKAN BARU: Efek Hover Tombol Navigasi (Komposisi Warna Accent)
+         Light Mode: Diatur di HTML (Emerald-50 bg, Emerald-700 text).
+         Dark Mode: Diatur di CSS di bawah ini (Emerald tint bg, Emerald-300 text).
+      */
+      .dark #nav-actions a:hover {
+        background-color: rgba(16, 185, 129, 0.15) !important; /* Emerald-500 opacity 15% */
+        color: #6ee7b7 !important; /* Emerald-300 (Glowing) */
+      }
+      
+      /* 
+         =========================================
+         UPDATE: OVERRIDE WARNA NAVIGASI (SESUAI REQUEST)
+         =========================================
+      */
+
+      /* Override Teks Tombol "Sebelumnya" & "Selanjutnya" di Dark Mode (#f8fafc) */
+      .dark #nav-actions a {
+        color: #f8fafc !important;
+      }
+
+      /* 
+         UPDATE: Override Teks Tombol "Daftar Surat" Mobile di Dark Mode (Match Referensi) 
+         - Text: Emerald-300 (#6ee7b7)
+         - BG: Emerald-900/20 (rgba(6, 78, 59, 0.2))
+         - Border: Transparent (Agar sesuai link referensi)
+      */
+      .dark #mobile-list-btn {
+        color: #6ee7b7 !important;
+        background-color: rgba(6, 78, 59, 0.2) !important;
+        border-color: transparent !important;
+      }
+
+      /* 
+         UPDATE: Hover State untuk Tombol "Daftar Surat" (Match Referensi)
+         - Hover Text: Emerald-200 (#a7f3d0)
+         - Hover BG: Emerald-900/30 (rgba(6, 78, 59, 0.3))
+      */
+      .dark #mobile-list-btn:hover {
+        color: #a7f3d0 !important;
+        background-color: rgba(6, 78, 59, 0.3) !important;
+      }
+
+      /* Override Qori Selector: Background & Border Visible di Dark Mode */
+      .dark #qori-selector {
+        background-color: #1e293b !important; /* Slate-800 */
+        border: 1px solid #334155 !important; /* Slate-700 (Visible Border) */
+        color: #f8fafc !important;
+      }
+      /* Force Qori Option Text (Child elements of select) */
+      .dark #qori-selector option {
+        background-color: #0f172a;
+        color: #f8fafc;
+      }
+
+      /* 
+         BLOK DI BAWAH INI DIHAPUS UNTUK MENGHINDARI KONFLIK ATURAN CSS 
+         (Duplikasi yang menyebabkan warna tidak berubah di default state)
+      */
+
+      /* 5. Mobile List Modal Wrapper */
+      .dark #mobile-list-modal {
+        background-color: #020617 !important;
+      }
+
+      /* Mobile Modal Spesifik Parts */
+      .dark #mobile-modal-header {
+        background-color: rgba(11, 18, 32, 0.85) !important;
+        border-color: rgba(30, 41, 59, 0.6) !important;
+      }
+      .dark #mobile-modal-header-text {
+        color: #f8fafc !important;
+      }
+      .dark #close-mobile-list {
+        color: #94a3b8 !important;
+      }
+      .dark #close-mobile-list:hover {
+        color: #f8fafc !important;
+      }
+      .dark #mobile-modal-search-area {
+        background-color: rgba(11, 18, 32, 0.85) !important;
+        border-color: rgba(30, 41, 59, 0.6) !important;
+      }
+
+      /* 
+         PERBAIKAN BARU: Mobile Sidebar List Background 
+         Light Mode: #f8fafc (Slate-50)
+         Dark Mode: rgba(11, 18, 32, 0.85)
+      */
+      #mobile-sidebar-list {
+        background-color: #f8fafc !important;
+      }
+      .dark #mobile-sidebar-list {
+        background-color: rgba(11, 18, 32, 0.85) !important;
+      }
+
+      /* 6. Surat Deskripsi */
+      .dark #surat-desc-box {
+        background-color: rgba(6, 78, 59, 0.2) !important;
+        border-color: rgba(16, 185, 129, 0.2) !important;
+      }
+      .dark #surat-desc-box p {
+        color: #d1fae5 !important;
+      }
+
+      /* 
+         PERBAIKAN BARU: Teks Terjemahan Ayat (Indonesian)
+         Dark Mode: Warna #f8fafc agar kontras.
+      */
+      .dark .ayat-item p.text-slate-600 {
+        color: #f8fafc !important;
+      }
+
+      /* 7. Qori Selector (Legacy/Backup) */
+      .dark #qori-selector {
+        color: #f8fafc !important;
+        background-color: rgba(11, 18, 32, 0.85) !important;
+      }
+
+      /* --- END SAFETY NET --- */
+
+      /* Sidebar & List Items */
+      #sidebar-list a, #mobile-sidebar-list a, .ayat-item {
+        background-color: var(--card-bg) !important;
+        border-color: var(--nav-border) !important;
+        color: var(--text) !important;
+      }
+
+      /* Sticky Header Control */
+      .dark .sticky-header-control {
+        background-color: rgba(11, 18, 32, 0.85) !important;
+        border-color: var(--nav-border) !important;
+        backdrop-filter: blur(12px);
+      }
+      .dark .sticky-header-control h1, .dark .sticky-header-control p {
+        color: var(--text) !important;
+      }
+
+      /* Navigasi Tombol (Prev/Next) - Default state */
+      .dark button, .dark a.bg-white {
+        background-color: var(--card-bg) !important;
+        border-color: var(--nav-border) !important;
+        color: var(--text) !important;
+      }
+
+      /* Header Ayat (Nomor & Teks Arab) */
+      .dark .ayat-item span.w-8, .dark .ayat-item p.font-arabic {
+        color: var(--text) !important;
+      }
+      .dark .ayat-item span.w-8 {
+        background-color: #1e293b !important;
+        border-color: #334155 !important;
+      }
+      .dark .ayat-item p.text-emerald-600 { color: #34d399 !important; }
+      .dark .play-ayat-btn {
+        background-color: rgba(16, 185, 129, 0.1) !important;
+        color: #34d399 !important;
+      }
+      .dark .play-ayat-btn:hover {
+        background-color: #059669 !important; color: #ffffff !important;
+      }
+      .dark .progress-container .progress-fill { background-color: #334155 !important; }
+      
+      /* --- 1. Mobile Menu Text Color --- */
+      .dark #mobile-menu a { color: #f8fafc !important; }
+      /* --- 2. Mobile Menu Hover Text & Background --- */
+      .dark #mobile-menu a:hover {
+        color: #6ee7b7 !important;
+        background-color: rgba(16, 185, 129, 0.2) !important;
+      }
+
+      /* --- 3. Mobile Active State Design --- */
+      .mobile-nav-item-active {
+        background-color: rgba(16, 185, 129, 0.1) !important;
+        color: #059669 !important;
+        font-weight: 700;
+        border-left: 4px solid #059669;
+      }
+      .dark .mobile-nav-item-active {
+        color: #6ee7b7 !important;
+        border-left-color: #6ee7b7;
+        background-color: rgba(16, 185, 129, 0.2) !important;
+      }
+
+      /* --- 4. Desktop Indicator Styling --- */
+      #nav-indicator {
+        bottom: 6px; height: 4px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); z-index: 0;
+      }
+      .dark #nav-indicator { box-shadow: 0 0 8px rgba(52, 211, 153, 0.4); }
+
+      /* --- 5. Sync Mobile Icon Color with Theme Toggle --- */
+      .dark #mobile-menu-btn span { background-color: #f8fafc !important; }
+
+      /* --- 6. Button Backgrounds --- */
+      .dark #theme-toggle, .dark #mobile-menu-btn {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+      }
+
+      .dark .nav-link { color: #f8fafc !important; }
+      .dark .page-header h1, .dark .page-header p { color: #f8fafc !important; }
+
+      /* Pill Scroll Style */
+      .is-pill {
+        width: 92% !important; max-width: 900px !important; margin-top: 1.25rem;
+        border-radius: 9999px !important; height: 64px !important;
+        padding-left: 2rem !important; padding-right: 2rem !important;
+        background-color: var(--pill-bg) !important;
+        backdrop-filter: blur(12px) saturate(120%) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+        border: 1px solid rgba(226, 232, 240, 0.5) !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03) !important;
+      }
+      .dark .is-pill {
+        border: 1px solid rgba(30,41,59,0.5) !important;
+        box-shadow: 0 10px 25px -8px rgba(0,0,0,0.6) !important;
+      }
+
+      .theme-ripple {
+        --size: 20vmax; position: fixed; left: 50%; top: 50%;
+        width: var(--size); height: var(--size);
+        transform: translate(-50%, -50%) scale(0);
+        background: radial-gradient(circle at center, var(--ripple-color), transparent 40%);
+        opacity: 0.9; border-radius: 50%; pointer-events: none; z-index: 9999;
+        animation: ripple-scale 700ms cubic-bezier(.22,.9,.3,1);
+      }
+      @keyframes ripple-scale {
+        0% { transform: translate(-50%, -50%) scale(0.02); opacity: 0.9; }
+        40% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.6; }
+        100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; }
+      }
+
+      .theme-transition *, .theme-transition {
+        transition: background-color 400ms cubic-bezier(.22,.9,.3,1) !important;
+      }
+
+      :focus { outline: 2px solid transparent; outline-offset: 2px; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+      .font-arabic { font-family: 'Amiri', serif; line-height: 2.2; color: var(--text) !important; }
+      .search-meta { display: none; }
+      
+      @media (max-width: 768px) {
+        .is-pill { width: calc(100% - 2rem) !important; }
+      }
+
+      /* 
+        =========================================
+        SAFETY NET BARU: HALAMAN JADWAL SHALAT (INDEX)
+        =========================================
+        Bagian ini menambahkan override CSS khusus untuk halaman Jadwal Shalat Index
+        agar warna-warna komponen berubah dengan benar saat dark mode aktif.
+      */
+
+      /* 1. LABEL FORM (Provinsi, Kabupaten/Kota, Bulan) */
+      /* Mengubah warna label menjadi #f8fafc saat dark mode */
+      .dark #shalat-container label {
+        color: #f8fafc !important;
+      }
+
+      /* 2. JUDUL "JADWAL SHALAT HARI INI" */
+      /* Mengubah warna teks judul section menjadi #f8fafc saat dark mode */
+      .dark #today-schedule-section h3 {
+        color: #f8fafc !important;
+      }
+
+      /* 3. SPAN DECORATOR (Garis hijau di samping judul) */
+      /* 
+         Rumus Komposisi Warna UI/UX:
+         - Light Mode: bg-emerald-500 (warna accent standar)
+         - Dark Mode: Menggunakan Emerald-400 (#34d399) yang lebih terang
+           untuk kontras lebih baik di background gelap.
+         - Alasan: Warna accent di dark mode perlu lebih terang 20-30% 
+           untuk visibility yang sama dengan light mode.
+      */
+      .dark #today-schedule-section h3 span {
+        background-color: #34d399 !important; /* Emerald-400, lebih terang dari Emerald-500 */
+      }
+
+      /* 4. BAGIAN "SHALAT BERIKUTNYA" (Next Prayer Section) */
+      /* 
+         Rumus Komposisi Warna UI/UX untuk Dark Mode:
+         - Background: Menggunakan gradient dengan opacity rendah (10%)
+           dari warna accent (emerald/teal) di atas background gelap.
+         - Alasan: Gradient memberikan depth dan hierarchy visual.
+         - Warna dasar: Emerald-900/10 ke Teal-900/10 untuk subtlety.
+      */
+      
+      /* Container Next Prayer Section */
+      .dark #next-prayer-section {
+        background: linear-gradient(135deg, rgba(6, 78, 59, 0.15) 0%, rgba(17, 94, 89, 0.15) 100%) !important;
+        border-color: rgba(52, 211, 153, 0.2) !important; /* Border subtle dengan accent color */
+      }
+
+      /* Teks dalam Next Prayer Section */
+      /* Menggunakan warna slate-100 (#f1f5f9) untuk heading dan slate-300 (#cbd5e1) untuk subtext */
+      .dark #next-prayer-section h2,
+      .dark #next-prayer-name {
+        color: #f8fafc !important; /* Near-white untuk heading utama */
+      }
+
+      .dark #next-prayer-section p,
+      .dark #next-prayer-time {
+        color: #cbd5e1 !important; /* Slate-300 untuk subtext */
+      }
+
+      /* Live Clock & Countdown (Monospace elements) */
+      .dark #live-clock {
+        color: #6ee7b7 !important; /* Emerald-300 untuk highlight */
+        text-shadow: 0 0 10px rgba(110, 231, 183, 0.3); /* Glow effect */
+      }
+
+      .dark #countdown-timer {
+        color: #f8fafc !important;
+      }
+
+      /* Label kecil (uppercase) */
+      .dark #next-prayer-section .text-xs {
+        color: #94a3b8 !important; /* Slate-400 untuk label sekunder */
+      }
+
+      /* 5. TODAY DATE BADGE */
+      /* 
+         Rumus Komposisi Warna:
+         - Background: Slate-800 dengan border subtle
+         - Text: Slate-200 untuk readability
+         - Hover: Slight brightness increase
+      */
+      .dark #today-date-badge {
+        background-color: rgba(30, 41, 59, 0.8) !important; /* Slate-800 dengan opacity */
+        color: #e2e8f0 !important; /* Slate-200 */
+        border: 1px solid rgba(51, 65, 85, 0.5) !important; /* Slate-700 border */
+      }
+
+      /* 6. GRID KARTU SHALAT HARI INI (Today Cards Container) */
+      /* 
+         Rumus Komposisi Warna untuk Kartu:
+         - Menggunakan sistem warna yang sudah didefinisikan di HTML (emerald, sky, amber, etc)
+         - Di dark mode: Meningkatkan opacity background 20% -> 30% untuk visibility
+         - Border: Menggunakan warna yang sama dengan teks tapi dengan opacity 30%
+      */
+      
+      /* Base card styling untuk dark mode - meningkatkan visibility */
+      .dark #today-cards-container > div {
+        background-color: rgba(30, 41, 59, 0.6) !important; /* Base slate-800 dengan opacity */
+        border-color: rgba(51, 65, 85, 0.8) !important;
+      }
+
+      /* Override spesifik untuk setiap warna kartu di dark mode */
+      /* Imsak - Emerald */
+      .dark #today-cards-container > div[class*="border-emerald"] {
+        background-color: rgba(6, 78, 59, 0.25) !important;
+        border-color: rgba(52, 211, 153, 0.3) !important;
+      }
+      .dark #today-cards-container > div[class*="text-emerald"] span {
+        color: #34d399 !important; /* Emerald-400 */
+      }
+
+      /* Subuh - Sky */
+      .dark #today-cards-container > div[class*="border-sky"] {
+        background-color: rgba(12, 74, 110, 0.25) !important;
+        border-color: rgba(56, 189, 248, 0.3) !important;
+      }
+      .dark #today-cards-container > div[class*="text-sky"] span {
+        color: #38bdf8 !important; /* Sky-400 */
+      }
+
+      /* Dzuhur - Amber */
+      .dark #today-cards-container > div[class*="border-amber"] {
+        background-color: rgba(120, 53, 15, 0.25) !important;
+        border-color: rgba(251, 191, 36, 0.3) !important;
+      }
+      .dark #today-cards-container > div[class*="text-amber"] span {
+        color: #fbbf24 !important; /* Amber-400 */
+      }
+
+      /* Ashar - Orange */
+      .dark #today-cards-container > div[class*="border-orange"] {
+        background-color: rgba(124, 45, 18, 0.25) !important;
+        border-color: rgba(251, 146, 60, 0.3) !important;
+      }
+      .dark #today-cards-container > div[class*="text-orange"] span {
+        color: #fb923c !important; /* Orange-400 */
+      }
+
+      /* Maghrib - Rose */
+      .dark #today-cards-container > div[class*="border-rose"] {
+        background-color: rgba(136, 19, 55, 0.25) !important;
+        border-color: rgba(251, 113, 133, 0.3) !important;
+      }
+      .dark #today-cards-container > div[class*="text-rose"] span {
+        color: #fb7185 !important; /* Rose-400 */
+      }
+
+      /* Isya - Indigo */
+      .dark #today-cards-container > div[class*="border-indigo"] {
+        background-color: rgba(49, 46, 129, 0.25) !important;
+        border-color: rgba(129, 140, 248, 0.3) !important;
+      }
+      .dark #today-cards-container > div[class*="text-indigo"] span {
+        color: #818cf8 !important; /* Indigo-400 */
+      }
+
+      /* Active/Next Prayer Card Highlight */
+      .dark #today-cards-container > div[class*="ring-2"] {
+        box-shadow: 0 0 20px rgba(52, 211, 153, 0.2) !important;
+      }
+
+      /* Badge "SEGERA" */
+      .dark #today-cards-container .animate-pulse {
+        color: #34d399 !important;
+      }
+
+      /* 7. HEADER TABEL JADWAL BULANAN (Table Header Section) */
+      /* 
+         Rumus Komposisi Warna:
+         - Background: Slate-900/80 dengan backdrop blur
+         - Border: Slate-700 dengan opacity
+         - Text: Slate-100 untuk judul
+      */
+      .dark #result-area > div:last-child > div:first-child {
+        background-color: rgba(15, 23, 42, 0.8) !important; /* Slate-900/80 */
+        border-color: rgba(51, 65, 85, 0.6) !important;
+      }
+
+      .dark #table-title {
+        color: #f8fafc !important;
+      }
+
+      /* 8. THEAD TABEL (Table Head) */
+      /* 
+         Rumus Komposisi Warna:
+         - Background: Slate-800/50 (semi-transparent)
+         - Text: Slate-200 untuk header
+         - Border: Slate-700 untuk pemisah
+      */
+      .dark #shalat-table thead {
+        background-color: rgba(30, 41, 59, 0.5) !important; /* Slate-800/50 */
+      }
+
+      .dark #shalat-table thead th {
+        color: #e2e8f0 !important; /* Slate-200 */
+        border-color: rgba(51, 65, 85, 0.5) !important;
+      }
+
+      /* Warna spesifik untuk kolom shalat di header */
+      .dark #shalat-table thead th[class*="text-emerald"] { color: #34d399 !important; }
+      .dark #shalat-table thead th[class*="text-sky"] { color: #38bdf8 !important; }
+      .dark #shalat-table thead th[class*="text-amber"] { color: #fbbf24 !important; }
+      .dark #shalat-table thead th[class*="text-orange"] { color: #fb923c !important; }
+      .dark #shalat-table thead th[class*="text-rose"] { color: #fb7185 !important; }
+      .dark #shalat-table thead th[class*="text-indigo"] { color: #818cf8 !important; }
+
+      /* Background tint untuk kolom shalat di header */
+      .dark #shalat-table thead th[class*="bg-emerald"] { background-color: rgba(6, 78, 59, 0.1) !important; }
+      .dark #shalat-table thead th[class*="bg-sky"] { background-color: rgba(12, 74, 110, 0.1) !important; }
+      .dark #shalat-table thead th[class*="bg-amber"] { background-color: rgba(120, 53, 15, 0.1) !important; }
+      .dark #shalat-table thead th[class*="bg-orange"] { background-color: rgba(124, 45, 18, 0.1) !important; }
+      .dark #shalat-table thead th[class*="bg-rose"] { background-color: rgba(136, 19, 55, 0.1) !important; }
+      .dark #shalat-table thead th[class*="bg-indigo"] { background-color: rgba(49, 46, 129, 0.1) !important; }
+
+      /* 9. KOLOM TANGGAL PADA TABEL */
+      /* Mengubah warna teks tanggal menjadi #f8fafc saat dark mode */
+      .dark #shalat-table tbody td:first-child span {
+        color: #f8fafc !important;
+      }
+
+      .dark #shalat-table tbody td:first-child .text-xs {
+        color: #94a3b8 !important; /* Slate-400 untuk hari */
+      }
+
+      /* 10. HOVER EFFECT PADA TABEL - HALAMAN INDEX */
+      /* 
+         Rumus Komposisi Warna Hover:
+         - Light Mode: Slate-50 (sangat terang)
+         - Dark Mode: Slate-800 dengan opacity 50%
+         - Algoritma: Menggunakan brighten/darken relative terhadap base background
+         - Light: Base #ffffff -> Hover #f8fafc (darken 2%)
+         - Dark: Base #0b1220 -> Hover rgba(30,41,59,0.5) (lighten 10%)
+      */
+      
+      /* Light Mode Hover */
+      #shalat-table tbody tr:hover {
+        background-color: #f8fafc !important; /* Slate-50 */
+        transition: background-color 200ms ease;
+      }
+
+      /* Dark Mode Hover - Menggunakan slate-800 dengan opacity */
+      .dark #shalat-table tbody tr:hover {
+        background-color: rgba(30, 41, 59, 0.6) !important; /* Slate-800/60 */
+      }
+
+      /* Pastikan teks tetap terlihat saat hover di dark mode */
+      .dark #shalat-table tbody tr:hover td {
+        color: #f8fafc !important;
+      }
+
+      /* Warna spesifik shalat tetap terjaga saat hover */
+      .dark #shalat-table tbody tr:hover td[class*="text-emerald"] { color: #34d399 !important; }
+      .dark #shalat-table tbody tr:hover td[class*="text-sky"] { color: #38bdf8 !important; }
+      .dark #shalat-table tbody tr:hover td[class*="text-amber"] { color: #fbbf24 !important; }
+      .dark #shalat-table tbody tr:hover td[class*="text-orange"] { color: #fb923c !important; }
+      .dark #shalat-table tbody tr:hover td[class*="text-rose"] { color: #fb7185 !important; }
+      .dark #shalat-table tbody tr:hover td[class*="text-indigo"] { color: #818cf8 !important; }
+
+      /* Row "HARI INI" (Highlight) */
+      .dark #shalat-table tbody tr[class*="bg-emerald"] {
+        background-color: rgba(6, 78, 59, 0.2) !important; /* Emerald-900/20 */
+        box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.2) !important;
+      }
+
+      .dark #shalat-table tbody tr[class*="bg-emerald"]:hover {
+        background-color: rgba(6, 78, 59, 0.3) !important; /* Emerald-900/30 */
+      }
+
+      /* Badge "HARI INI" */
+      .dark #shalat-table tbody .bg-emerald-600 {
+        background-color: #059669 !important; /* Emerald-600 */
+        color: #ffffff !important;
+      }
+
+      /* 
+        =========================================
+        SAFETY NET BARU: HALAMAN JADWAL SHALAT DETAIL ([SLUG])
+        =========================================
+        Override CSS khusus untuk halaman detail jadwal shalat dengan URL /shalat/[slug]
+      */
+
+      /* 1. JUDUL "JADWAL SHALAT" DI HEADER HALAMAN */
+      /* Mengubah warna teks h1 menjadi #f8fafc saat dark mode */
+      .dark h1.text-2xl.font-bold {
+        color: #f8fafc !important;
+      }
+
+      /* 2. LOCATION TITLE (Subtitle di bawah judul) */
+      /* Mengubah warna teks menjadi #94a3b8 (Slate-400) saat dark mode */
+      .dark #location-title {
+        color: #94a3b8 !important;
+      }
+
+      /* 3. BAGIAN "PILIH BULAN (TAB NAVIGATION)" */
+      /* 
+         Rumus Komposisi Warna UI/UX untuk Tab Navigation:
+         - Container Background: Slate-900 dengan opacity tinggi (0.9) untuk depth
+         - Border: Slate-700 dengan opacity 60% untuk definisi tanpa terlalu kontras
+         - Shadow: Shadow-xl dengan warna hitam untuk floating effect
+      */
+      
+      /* Container Tab Navigation */
+      .dark #month-tabs,
+      .dark .bg-white.dark\:bg-slate-900:has(#month-tabs) {
+        background-color: rgba(15, 23, 42, 0.9) !important; /* Slate-900/90 */
+        border-color: rgba(51, 65, 85, 0.6) !important; /* Slate-700/60 */
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      /* Tab Button - Default State (Non-aktif) */
+      .dark .month-tab-btn {
+        background-color: rgba(30, 41, 59, 0.5) !important; /* Slate-800/50 */
+        color: #94a3b8 !important; /* Slate-400 */
+        border: 1px solid transparent !important;
+        transition: all 0.2s ease;
+      }
+
+      /* Tab Button - Hover State */
+      .dark .month-tab-btn:hover {
+        background-color: rgba(51, 65, 85, 0.6) !important; /* Slate-700/60 */
+        color: #e2e8f0 !important; /* Slate-200 */
+        transform: translateY(-1px);
+      }
+
+      /* Tab Button - Active State (Bulan yang dipilih) */
+      .dark .month-tab-btn.bg-emerald-600,
+      .dark .month-tab-btn[class*="bg-emerald-600"] {
+        background-color: #059669 !important; /* Emerald-600 */
+        color: #ffffff !important;
+        box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.3), 0 2px 4px -1px rgba(5, 150, 105, 0.2) !important;
+        border: 1px solid rgba(52, 211, 153, 0.3) !important;
+        font-weight: 600;
+      }
+
+      /* 
+        =========================================
+        4. BAGIAN "TABEL JADWAL" - [SLUG].ASTRO
+        =========================================
+        
+        PERBAIKAN KRUSIAL: Warna hover disamakan dengan halaman index.astro
+        
+        Masalah: Selector yang terlalu spesifik (#content-container #shalat-table)
+        menyebabkan hover effect tidak bekerja dengan benar.
+        
+        Solusi: Menggunakan dua selector terpisah untuk memastikan konsistensi:
+        - Selector 1: Untuk halaman index (tanpa #content-container)
+        - Selector 2: Untuk halaman [slug] (dengan scope yang lebih luas)
+        
+        Algoritma Warna Hover:
+        - Light Mode: #f8fafc (Slate-50) - brighten dari white
+        - Dark Mode: rgba(30, 41, 59, 0.6) (Slate-800/60) - darken dari base
+      */
+
+      /* 
+        BASE TABLE STYLING - HALAMAN [SLUG].ASTRO
+        Menggunakan !important untuk override inline styles
+      */
+      
+      /* Container Wrapper Tabel - Transparan agar tabel yang menentukan warna */
+      .dark #content-container > div.overflow-x-auto,
+      .dark #content-container > .overflow-x-auto.rounded-3xl {
+        background-color: transparent !important;
+        border-color: rgba(51, 65, 85, 0.6) !important;
+      }
+
+      /* Tabel itu sendiri - Background utama */
+      .dark #content-container #shalat-table {
+        background-color: rgba(11, 18, 32, 0.85) !important; /* Slate-900/85 */
+        color: #f8fafc !important;
+      }
+
+      /* Thead - Header Tabel */
+      .dark #content-container #shalat-table thead {
+        background-color: rgba(30, 41, 59, 0.5) !important; /* Slate-800/50 */
+      }
+
+      .dark #content-container #shalat-table thead th {
+        color: #e2e8f0 !important; /* Slate-200 */
+        border-color: rgba(51, 65, 85, 0.5) !important;
+      }
+
+      /* Warna spesifik kolom shalat di thead */
+      .dark #content-container #shalat-table thead th[class*="text-emerald"] { color: #34d399 !important; }
+      .dark #content-container #shalat-table thead th[class*="text-sky"] { color: #38bdf8 !important; }
+      .dark #content-container #shalat-table thead th[class*="text-amber"] { color: #fbbf24 !important; }
+      .dark #content-container #shalat-table thead th[class*="text-orange"] { color: #fb923c !important; }
+      .dark #content-container #shalat-table thead th[class*="text-rose"] { color: #fb7185 !important; }
+      .dark #content-container #shalat-table thead th[class*="text-indigo"] { color: #818cf8 !important; }
+
+      /* Background tint untuk kolom shalat di thead */
+      .dark #content-container #shalat-table thead th[class*="bg-emerald"] { background-color: rgba(6, 78, 59, 0.1) !important; }
+      .dark #content-container #shalat-table thead th[class*="bg-sky"] { background-color: rgba(12, 74, 110, 0.1) !important; }
+      .dark #content-container #shalat-table thead th[class*="bg-amber"] { background-color: rgba(120, 53, 15, 0.1) !important; }
+      .dark #content-container #shalat-table thead th[class*="bg-orange"] { background-color: rgba(124, 45, 18, 0.1) !important; }
+      .dark #content-container #shalat-table thead th[class*="bg-rose"] { background-color: rgba(136, 19, 55, 0.1) !important; }
+      .dark #content-container #shalat-table thead th[class*="bg-indigo"] { background-color: rgba(49, 46, 129, 0.1) !important; }
+
+      /* 
+        =========================================
+        HOVER EFFECT - KONSISTEN DENGAN INDEX.ASTRO
+        =========================================
+        
+        PERBAIKAN: Menggunakan selector yang lebih spesifik dan !important
+        untuk memastikan hover bekerja di kedua halaman dengan cara yang sama.
+      */
+
+      /* 
+        SELECTOR UNIVERSAL - BEKERJA UNTUK KEDUA HALAMAN
+        Menggunakan [id*="shalat-table"] untuk match ID apapun yang mengandung "shalat-table"
+      */
+      
+      /* Light Mode Hover - Universal */
+      [id*="shalat-table"] tbody tr:hover,
+      #shalat-table tbody tr:hover,
+      #content-container #shalat-table tbody tr:hover {
+        background-color: #f8fafc !important; /* Slate-50 */
+        transition: background-color 200ms ease !important;
+      }
+
+      /* Dark Mode Hover - Universal (SAMA DENGAN INDEX.ASTRO) */
+      .dark [id*="shalat-table"] tbody tr:hover,
+      .dark #shalat-table tbody tr:hover,
+      .dark #content-container #shalat-table tbody tr:hover {
+        background-color: rgba(30, 41, 59, 0.6) !important; /* Slate-800/60 - SAMA DENGAN INDEX */
+      }
+
+      /* Pastikan teks tetap terlihat saat hover di dark mode - Universal */
+      .dark [id*="shalat-table"] tbody tr:hover td,
+      .dark #shalat-table tbody tr:hover td,
+      .dark #content-container #shalat-table tbody tr:hover td {
+        color: #f8fafc !important;
+      }
+
+      /* Warna spesifik shalat tetap terjaga saat hover - Universal */
+      .dark [id*="shalat-table"] tbody tr:hover td[class*="text-emerald"],
+      .dark #shalat-table tbody tr:hover td[class*="text-emerald"],
+      .dark #content-container #shalat-table tbody tr:hover td[class*="text-emerald"] { 
+        color: #34d399 !important; 
+      }
+
+      .dark [id*="shalat-table"] tbody tr:hover td[class*="text-sky"],
+      .dark #shalat-table tbody tr:hover td[class*="text-sky"],
+      .dark #content-container #shalat-table tbody tr:hover td[class*="text-sky"] { 
+        color: #38bdf8 !important; 
+      }
+
+      .dark [id*="shalat-table"] tbody tr:hover td[class*="text-amber"],
+      .dark #shalat-table tbody tr:hover td[class*="text-amber"],
+      .dark #content-container #shalat-table tbody tr:hover td[class*="text-amber"] { 
+        color: #fbbf24 !important; 
+      }
+
+      .dark [id*="shalat-table"] tbody tr:hover td[class*="text-orange"],
+      .dark #shalat-table tbody tr:hover td[class*="text-orange"],
+      .dark #content-container #shalat-table tbody tr:hover td[class*="text-orange"] { 
+        color: #fb923c !important; 
+      }
+
+      .dark [id*="shalat-table"] tbody tr:hover td[class*="text-rose"],
+      .dark #shalat-table tbody tr:hover td[class*="text-rose"],
+      .dark #content-container #shalat-table tbody tr:hover td[class*="text-rose"] { 
+        color: #fb7185 !important; 
+      }
+
+      .dark [id*="shalat-table"] tbody tr:hover td[class*="text-indigo"],
+      .dark #shalat-table tbody tr:hover td[class*="text-indigo"],
+      .dark #content-container #shalat-table tbody tr:hover td[class*="text-indigo"] { 
+        color: #818cf8 !important; 
+      }
+
+      /* 
+        ROW "HARI INI" - HIGHLIGHT SPESIAL
+        Styling khusus untuk baris hari ini dengan ring dan background accent
+      */
+      
+      /* Base highlight - Light Mode */
+      #content-container #shalat-table tbody tr[class*="bg-emerald"] {
+        background-color: #ecfdf5 !important; /* Emerald-50 */
+        box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2) !important;
+      }
+
+      /* Base highlight - Dark Mode */
+      .dark #content-container #shalat-table tbody tr[class*="bg-emerald"] {
+        background-color: rgba(6, 78, 59, 0.2) !important; /* Emerald-900/20 */
+        box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.2) !important;
+      }
+
+      /* Hover pada row highlight - Light Mode */
+      #content-container #shalat-table tbody tr[class*="bg-emerald"]:hover {
+        background-color: #d1fae5 !important; /* Emerald-100 */
+      }
+
+      /* Hover pada row highlight - Dark Mode */
+      .dark #content-container #shalat-table tbody tr[class*="bg-emerald"]:hover {
+        background-color: rgba(6, 78, 59, 0.3) !important; /* Emerald-900/30 */
+      }
+
+      /* Badge "HARI INI" - Styling konsisten */
+      .dark #content-container #shalat-table tbody .bg-emerald-600 {
+        background-color: #059669 !important; /* Emerald-600 */
+        color: #ffffff !important;
+      }
+
+      /* Kolom Tanggal - Styling spesifik */
+      .dark #content-container #shalat-table tbody td:first-child span {
+        color: #f8fafc !important;
+      }
+
+      .dark #content-container #shalat-table tbody td:first-child .text-xs {
+        color: #94a3b8 !important; /* Slate-400 untuk hari */
+      }
+
+      /* 
+        =========================================
+        5. NEXT PRAYER SECTION & TODAY SCHEDULE ([SLUG])
+        =========================================
+      */
+      
+      /* Next Prayer Section - Gradient background */
+      .dark #content-container #next-prayer-section {
+        background: linear-gradient(135deg, rgba(6, 78, 59, 0.15) 0%, rgba(17, 94, 89, 0.15) 100%) !important;
+        border-color: rgba(52, 211, 153, 0.2) !important;
+      }
+
+      .dark #content-container #next-prayer-section h2,
+      .dark #content-container #next-prayer-name {
+        color: #f8fafc !important;
+      }
+
+      .dark #content-container #next-prayer-section p,
+      .dark #content-container #next-prayer-time {
+        color: #cbd5e1 !important; /* Slate-300 */
+      }
+
+      /* Today Schedule Section */
+      .dark #content-container #today-schedule-section h3 {
+        color: #f8fafc !important;
+      }
+
+      /* 
+        TODAY CARDS CONTAINER - GRID KARTU SHALAT
+        Styling sama dengan halaman index untuk konsistensi
+      */
+      
+      /* Base card styling */
+      .dark #content-container #today-cards-container > div {
+        background-color: rgba(30, 41, 59, 0.6) !important;
+        border-color: rgba(51, 65, 85, 0.8) !important;
+      }
+
+      /* Imsak - Emerald */
+      .dark #content-container #today-cards-container > div[class*="border-emerald"] {
+        background-color: rgba(6, 78, 59, 0.25) !important;
+        border-color: rgba(52, 211, 153, 0.3) !important;
+      }
+      .dark #content-container #today-cards-container > div[class*="text-emerald"] span {
+        color: #34d399 !important;
+      }
+
+      /* Subuh - Sky */
+      .dark #content-container #today-cards-container > div[class*="border-sky"] {
+        background-color: rgba(12, 74, 110, 0.25) !important;
+        border-color: rgba(56, 189, 248, 0.3) !important;
+      }
+      .dark #content-container #today-cards-container > div[class*="text-sky"] span {
+        color: #38bdf8 !important;
+      }
+
+      /* Dzuhur - Amber */
+      .dark #content-container #today-cards-container > div[class*="border-amber"] {
+        background-color: rgba(120, 53, 15, 0.25) !important;
+        border-color: rgba(251, 191, 36, 0.3) !important;
+      }
+      .dark #content-container #today-cards-container > div[class*="text-amber"] span {
+        color: #fbbf24 !important;
+      }
+
+      /* Ashar - Orange */
+      .dark #content-container #today-cards-container > div[class*="border-orange"] {
+        background-color: rgba(124, 45, 18, 0.25) !important;
+        border-color: rgba(251, 146, 60, 0.3) !important;
+      }
+      .dark #content-container #today-cards-container > div[class*="text-orange"] span {
+        color: #fb923c !important;
+      }
+
+      /* Maghrib - Rose */
+      .dark #content-container #today-cards-container > div[class*="border-rose"] {
+        background-color: rgba(136, 19, 55, 0.25) !important;
+        border-color: rgba(251, 113, 133, 0.3) !important;
+      }
+      .dark #content-container #today-cards-container > div[class*="text-rose"] span {
+        color: #fb7185 !important;
+      }
+
+      /* Isya - Indigo */
+      .dark #content-container #today-cards-container > div[class*="border-indigo"] {
+        background-color: rgba(49, 46, 129, 0.25) !important;
+        border-color: rgba(129, 140, 248, 0.3) !important;
+      }
+      .dark #content-container #today-cards-container > div[class*="text-indigo"] span {
+        color: #818cf8 !important;
+      }
+
+      /* Active/Next Prayer Card Highlight */
+      .dark #content-container #today-cards-container > div[class*="ring-2"] {
+        box-shadow: 0 0 20px rgba(52, 211, 153, 0.2) !important;
+      }
+
+      /* Badge "SEGERA" */
+      .dark #content-container #today-cards-container .animate-pulse {
+        color: #34d399 !important;
+      }
+
+      /* 
+        =========================================
+        STYLING SOCIAL MEDIA BUTTONS
+        =========================================
+        Implementasi desain hover animation dengan dua state:
+        1. State Default: Icon berwarna sesuai tema (hitam/putih) di background terang/gelap
+        2. State Hover: Icon putih di background brand color dengan animasi slide up
+        
+        Algoritma Animasi:
+        - Container memiliki overflow: hidden dan fixed height (80px)
+        - Kedua icon state di-stack vertically (satu di atas satu)
+        - Saat hover: translateY(-70px) menggeser keduanya ke atas
+        - Icon bawah (brand color) menjadi visible, icon atas (default) hilang
+      */
+
+      /* Container utama social icons */
+      .social-login-icons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px; /* Spacing antar button */
+        margin-bottom: 1rem; /* Jarak dengan copyright */
+        
+        /* Efek reflection di bawah icons (hanya light mode) */
+        -webkit-box-reflect: below 5px linear-gradient(transparent, rgba(0, 0, 0, 0.1));
+      }
+
+      /* Dark mode: reflection lebih subtle */
+      .dark .social-login-icons {
+        -webkit-box-reflect: below 5px linear-gradient(transparent, rgba(0, 0, 0, 0.3));
+      }
+
+      /* Ukuran icon SVG */
+      .social-login-icons svg {
+        width: 24px;
+        height: 24px;
+      }
+
+      /* 
+        Container per icon (socialcontainer)
+        - Height fixed 80px untuk accommodate dua state icon
+        - Overflow hidden untuk clip animasi
+        - Position relative untuk stacking
+      */
+      .socialcontainer {
+        position: relative;
+        height: 50px; /* Tinggi visible area */
+        width: 50px;
+        overflow: hidden;
+        border-radius: 50%; /* Circular shape */
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+
+      /* Hover effect pada container: scale up sedikit */
+      .socialcontainer:hover {
+        transform: translateY(-2px);
+      }
+
+      /* 
+        Base styling untuk kedua state icon (default dan hover)
+        - Absolute positioning untuk stacking
+        - Flex center untuk alignment
+        - Transition untuk animasi smooth
+      */
+      .social-icon-base,
+      .social-icon-animated {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: transform 0.4s cubic-bezier(0.46, -0.78, 0.5, 1.56);
+      }
+
+      /* 
+        STATE 1: Default Icon (Visible saat tidak hover)
+        - Light mode: Background slate-100, icon slate-800
+        - Dark mode: Background slate-800, icon slate-200
+      */
+      .social-icon-base {
+        background-color: #f1f5f9; /* Slate-100 */
+        z-index: 2;
+      }
+
+      .social-icon-base svg {
+        fill: #0f172a; /* Slate-800 */
+        transition: fill 0.3s ease;
+      }
+
+      /* Dark mode variant */
+      .dark .social-icon-base {
+        background-color: #1e293b; /* Slate-800 */
+      }
+
+      .dark .social-icon-base svg {
+        fill: #f1f5f9; /* Slate-100 */
+      }
+
+      /* 
+        STATE 2: Hover Icon (Hidden by default, visible saat hover)
+        - Background: Brand color masing-masing platform
+        - Icon: Always white
+        - Posisi: Di bawah default icon (translateY(100%))
+      */
+      .social-icon-animated {
+        z-index: 1;
+        transform: translateY(100%); /* Start di bawah */
+      }
+
+      /* Icon putih untuk semua brand */
+      .social-icon-animated svg {
+        fill: white;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.3s ease 0.1s; /* Delay sedikit untuk sync dengan slide */
+      }
+
+      /* 
+        HOVER ANIMATION
+        Saat container di-hover:
+        1. Default icon slide up (translateY(-100%))
+        2. Hover icon slide up dari bawah (translateY(0))
+        3. Icon putih menjadi visible (opacity 1)
+      */
+      .socialcontainer:hover .social-icon-base {
+        transform: translateY(-100%);
+      }
+
+      .socialcontainer:hover .social-icon-animated {
+        transform: translateY(0);
+      }
+
+      .socialcontainer:hover .social-icon-animated svg {
+        opacity: 1;
+      }
+
+      /* 
+        BRAND SPECIFIC COLORS (Hover State)
+        Setiap platform memiliki warna background spesifik saat hover
+      */
+
+      /* Twitter/X - Black */
+      .social-icon-1 {
+        background-color: #000000;
+      }
+
+      /* Instagram - Gradient */
+      .social-icon-2 {
+        background: linear-gradient(72.44deg, #ff7a00 11.92%, #ff0169 51.56%, #d300c5 85.69%);
+      }
+
+      /* Facebook - Blue */
+      .social-icon-3 {
+        background-color: #316ff6;
+      }
+
+      /* LinkedIn - Blue */
+      .social-icon-4 {
+        background-color: #0a66c2;
+      }
+
+      /* GitHub - Purple Gradient */
+      .social-icon-5 {
+        background: linear-gradient(180deg, rgba(129, 34, 144, 1) 0%, rgba(77, 34, 124, 1) 91%);
+      }
+
+      /* 
+        =========================================
+        PERBAIKAN: COPYRIGHT TEXT COLOR DI DARK MODE
+        =========================================
+        
+        Masalah: Warna teks copyright tidak berubah menjadi #f8fafc saat dark mode
+        
+        Solusi: Override spesifik untuk ID #copyright-text dengan !important
+        untuk memastikan warna tetap #f8fafc di dark mode.
+        
+        Algoritma:
+        1. Gunakan selector .dark #copyright-text untuk specificity tinggi
+        2. Tambahkan !important untuk override inline styles atau Tailwind
+        3. Target semua child elements (span, etc) untuk konsistensi
+      */
+
+      /* 
+        DARK MODE OVERRIDE - Copyright Text
+        Mengubah warna menjadi #f8fafc (near-white) untuk kontras optimal
+        di background gelap slate-900
+      */
+      .dark #copyright-text {
+        color: #f8fafc !important;
+      }
+
+      /* 
+        Override untuk span di dalam copyright (year display)
+        Memastikan seluruh teks dalam paragraph berwarna sama
+      */
+      .dark #copyright-text span {
+        color: #f8fafc !important;
+      }
+
+      /* 
+        LIGHT MODE - Copyright Text
+        Menggunakan slate-500 (#64748b) untuk subdued appearance
+        di background terang
+      */
+      #copyright-text {
+        color: #64748b; /* Slate-500 */
+        transition: color 0.3s ease; /* Smooth transition saat theme switch */
+      }
+
+      #copyright-text span {
+        color: #64748b;
+        transition: color 0.3s ease;
+      }
+
+      /* 
+        HOVER EFFECT (Optional)
+        Menambahkan sedikit interaktivitas saat hover
+      */
+      #copyright-text:hover {
+        color: #475569; /* Slate-600 di light mode */
+      }
+
+      .dark #copyright-text:hover {
+        color: #ffffff !important; /* Pure white saat hover di dark mode */
+      }
+
+      /* 
+        =========================================
+        CSS BARU: BACKGROUND MUSIC TOGGLE BUTTON
+        =========================================
+        IMPLEMENTASI: Menggunakan pattern dari kode kedua (1562 baris)
+        
+        Perubahan dari kode sebelumnya:
+        1. Class-based toggle (bukan inline style manipulation)
+        2. Simplified icon toggle (hidden class vs transform animation)
+        3. Position adjustment via .shift-up class
+        
+        Penjelasan:
+        1. .music-btn: Class dasar untuk tombol.
+           - fixed bottom-6 right-6: Posisi di kanan bawah.
+           - z-39: Di bawah scroll button (z-40) agar tidak menutupi, tapi tetap di atas konten.
+           - transform: translateX(150%): Posisi awal di luar layar (kanan).
+           - transition: Animasi pergerakan halus.
+        
+        2. .music-btn-visible: Class yang ditambahkan JS saat tombol harus muncul.
+           - transform: translateX(0): Kembali ke posisi normal (masuk ke layar).
+        
+        3. .shift-up: Class yang ditambahkan JS saat scroll button muncul.
+           - bottom: 5.5rem: Posisi naik ke atas untuk menghindari tumpang tindih.
+      */
+      .music-btn {
+        position: fixed;
+        bottom: 1.5rem; /* 24px */
+        right: 1.5rem;  /* 24px */
+        z-index: 39;    /* Di bawah scrollBtn (40) */
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        color: #059669; /* Emerald-600 */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        outline: none;
+        
+        /* Animation States */
+        transform: translateX(150%); /* Default: Di luar layar kanan */
+        opacity: 0;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, bottom 0.3s ease, background-color 0.3s;
+      }
+
+      /* State saat tombol terlihat (dipicu JS) */
+      .music-btn.music-btn-visible {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      /* State saat tombol bergeser ke atas (karena scroll button muncul) */
+      .music-btn.shift-up {
+        bottom: 5.5rem; /* Naik ke atas */
+      }
+
+      /* Dark Mode Styling */
+      .dark .music-btn {
+        background-color: #1e293b; /* Slate-800 */
+        color: #34d399; /* Emerald-400 */
+        border-color: #334155;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Icon Wrapper untuk pusatkan konten */
+      .icon-wrapper {
+        position: relative;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Animasi tukar icon (Fade & Scale) */
+      .music-icon {
+        position: absolute;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .music-icon.hidden {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+
+      /* Hover Effects */
+      .music-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      }
+      
+      /* Override hover transform saat visible agar tidak konflik dengan translateX */
+      .music-btn.music-btn-visible:hover {
+        transform: translateX(0) scale(1.1);
+      }
+
+      .dark .music-btn:hover {
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Animation untuk warning ketika mencoba toggle music saat Quran play */
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+      
+      .shake-animation {
+        animation: shake 0.3s ease-in-out;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 640px) {
+        .social-login-icons {
+          gap: 8px;
+        }
+        
+        .socialcontainer {
+          width: 44px;
+          height: 44px;
+        }
+        
+        .social-login-icons svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      /* Reduced Motion Support */
+      @media (prefers-reduced-motion: reduce) {
+        .social-icon-base,
+        .social-icon-animated,
+        .socialcontainer {
+          transition: none;
+        }
+        
+        .social-icon-animated {
+          transform: none;
+          opacity: 0;
+        }
+        
+        .socialcontainer:hover .social-icon-animated {
+          opacity: 1;
+        }
+        
+        /* Tambahan untuk music button */
+        .music-btn {
+          transition: none;
+        }
+      }
+
+      /* Focus states untuk keyboard navigation */
+      .socialcontainer:focus-visible {
+        outline: 2px solid #10b981;
+        outline-offset: 2px;
+      }
+
+      /* --- END SAFETY NET SHALAT PAGES --- */
+    </style>
+  </body>
+</html>

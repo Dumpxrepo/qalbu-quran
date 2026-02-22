@@ -1,0 +1,106 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Halaman Tidak Ditemukan">
+    <!-- 
+      Container utama dengan flexbox untuk centering
+      py-20: padding vertical 5rem (80px)
+      text-center: align text ke tengah
+    -->
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+        
+        <!-- Angka 404 dengan ukuran besar dan warna emerald -->
+        <h1 class="text-6xl font-bold text-emerald-200 mb-4">404</h1>
+        
+        <!-- 
+          TEKS "HALAMAN HILANG" dengan dark mode color #f8fafc
+          Light Mode: slate-700 (Dark Gray)
+          Dark Mode: #f8fafc (White)
+        -->
+        <p class="text-xl font-bold text-slate-700 dark:text-[#f8fafc] mb-2">Halaman Hilang</p>
+        
+        <!-- 
+          TEKS "MAAF..." dengan dark mode color #f8fafc
+          Light Mode: slate-500 (Medium Gray)
+          Dark Mode: #f8fafc (White)
+        -->
+        <p class="text-slate-500 dark:text-[#f8fafc] mb-8">Maaf, halaman yang Anda cari tidak ditemukan.</p>
+        
+        <!-- 
+          BUTTON "KEMBALI KE BERANDA" dengan dark mode styling
+          
+          Light Mode:
+          - Background: bg-emerald-600 (#059669)
+          - Text: text-white (#ffffff)
+          - Hover BG: hover:bg-emerald-700 (#047857)
+          - Shadow: shadow-emerald-200 (Light Emerald tint)
+          
+          Dark Mode:
+          - Background: dark:bg-[#064e3b33] (Emerald-900 dengan opacity 20%)
+          - Text: dark:text-[#6ee7b7] (Emerald-300 - glowing green)
+          - Hover BG: dark:hover:bg-[#064e3b66] (Emerald-900 dengan opacity 40%)
+          - Shadow: dark:shadow-emerald-900/30 (Dark Emerald tint)
+        -->
+        <a 
+            href="/" 
+            class="bg-emerald-600 dark:bg-[#064e3b33] text-white dark:text-[#6ee7b7] px-6 py-3 rounded-xl hover:bg-emerald-700 dark:hover:bg-[#064e3b66] transition-colors shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30"
+        >
+            Kembali ke Beranda
+        </a>
+    </div>
+</Layout>
+
+<!-- 
+  =========================================
+  GLOBAL STYLES UNTUK DARK MODE OVERRIDE
+  =========================================
+  
+  CSS ini memastikan warna dark mode diterapkan dengan benar
+  Menggunakan !important untuk override Tailwind defaults
+-->
+<style is:global>
+  /* 
+    =========================================
+    DARK MODE FIXES FOR 404 PAGE
+    =========================================
+  */
+  
+  /* Teks "Halaman Hilang" - Dark Mode Override */
+  .dark .text-slate-700 {
+    color: #f8fafc !important; /* White instead of slate-700 */
+  }
+  
+  /* Teks "Maaf..." - Dark Mode Override */
+  .dark .text-slate-500 {
+    color: #f8fafc !important; /* White instead of slate-500 */
+  }
+  
+  /* 
+    BUTTON STYLING - DARK MODE
+    =========================================
+  */
+  
+  /* Button Background - Dark Mode */
+  .dark a.bg-emerald-600 {
+    background-color: #064e3b33 !important; /* Emerald-900 dengan opacity 20% */
+    color: #6ee7b7 !important; /* Emerald-300 untuk text */
+  }
+  
+  /* Button Hover - Dark Mode */
+  .dark a.bg-emerald-600:hover {
+    background-color: #064e3b66 !important; /* Emerald-900 dengan opacity 40% */
+    color: #a7f3d0 !important; /* Emerald-200 untuk text hover */
+  }
+  
+  /* Button Shadow - Dark Mode */
+  .dark a.bg-emerald-600 {
+    box-shadow: 0 10px 15px -3px rgba(6, 78, 59, 0.3) !important; /* Emerald-900 shadow */
+  }
+  
+  /* Button Focus Ring - Dark Mode */
+  .dark a.bg-emerald-600:focus {
+    outline: 2px solid #34d399 !important; /* Emerald-400 focus ring */
+    outline-offset: 2px !important;
+  }
+</style>

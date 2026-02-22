@@ -1,0 +1,80 @@
+# ============================================
+# DEPENDENCIES & BUILD OUTPUT
+# ============================================
+
+# Folder dependencies yang di-generate oleh npm/yarn/pnpm
+node_modules/
+
+# Build output Astro
+dist/
+
+# Folder cache Astro
+.astro/
+
+# ============================================
+# ENVIRONMENT VARIABLES
+# ============================================
+
+# File environment (berisi secret/API keys)
+.env
+.env.local
+.env.*.local
+
+# ============================================
+# LOG FILES
+# ============================================
+
+# Log files dari npm/yarn/pnpm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============================================
+# EDITOR & OS FILES
+# ============================================
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor directories and files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ============================================
+# CLOUDFLARE WORKERS (Wrangler)
+# ============================================
+
+# Wrangler local state
+.wrangler/
+.dev.vars
+
+# ============================================
+# TESTING
+# ============================================
+
+# Coverage reports
+coverage/
+
+# ============================================
+# MISC
+# ============================================
+
+# Temporary files
+*.log
+*.tmp
+*.temp

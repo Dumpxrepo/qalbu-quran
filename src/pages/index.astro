@@ -1,0 +1,1113 @@
+---
+// src/pages/index.astro
+// Halaman daftar surat - menampilkan daftar surat dari API dan search client-side.
+// Kode ini menambahkan Jadwal Shalat Hari Ini berdasarkan lokasi IP user.
+// VERSI TERBARU: Menggunakan environment variables untuk semua API endpoints.
+// UPDATE: Menambahkan logika untuk menampilkan jadwal Subuh besok setelah Isya
+// UPDATE BARU: Fix styling button "Coba Lagi" agar tidak terpengaruh global CSS
+
+import Layout from '../layouts/Layout.astro';
+
+// ============================================
+// SERVER-SIDE DATA FETCHING
+// ============================================
+// Fetch data daftar surat dari API equran.id (Server Side Rendering)
+// Menggunakan import.meta.env untuk mengakses environment variables
+const apiUrl = import.meta.env.PUBLIC_API_QURAN_LIST;
+const response = await fetch(apiUrl);
+const result = await response.json();
+const daftarSurat = result.data || [];
+
+// Export environment variables untuk digunakan di client-side script
+// Astro akan meng-inject nilai ini ke JavaScript client
+const ENV = {
+  IPINFO_URL: `${import.meta.env.PUBLIC_API_IPINFO}?token=${import.meta.env.PUBLIC_API_IPINFO_TOKEN}`,
+  MQ_KOTA_CARI: import.meta.env.PUBLIC_API_MQ_KOTA_CARI,
+  MQ_JADWAL: import.meta.env.PUBLIC_API_MQ_JADWAL
+};
+---
+
+<Layout title="Daftar Surat | Qalbu">
+  <div class="space-y-6">
+    
+    <!-- ============================================
+         BAGIAN BARU: JADWAL SHALAT HARI INI (WIDGET)
+         ============================================
+         Widget ini menampilkan jadwal shalat real-time berdasarkan lokasi IP user.
+         
+         ALUR KERJA (WORKFLOW):
+         1. Saat halaman dimuat → JavaScript client-side berjalan
+         2. Fetch ke ipinfo.io → Dapatkan kota dari IP user
+         3. Fetch ke myquran.com/kota/cari → Dapatkan ID kota
+         4. Fetch ke myquran.com/jadwal → Dapatkan jadwal lengkap (hari ini & besok)
+         5. Render UI dengan data yang didapat
+         6. Start timer untuk countdown dan live clock
+         7. Setelah Isya, otomatis switch ke jadwal besok
+         
+         KEUNGGULAN:
+         - Tidak membebani server (client-side fetching)
+         - Caching 1 jam di localStorage (hemat API calls)
+         - Auto-detect lokasi (user tidak perlu input manual)
+         - Fallback ke Jakarta jika deteksi gagal
+         - Auto-switch ke hari berikutnya setelah Isya
+    -->
+    <div id="prayer-widget-container" class="space-y-4 animate-in fade-in slide-in-from-top-4 duration-700">
+      
+      <!-- STATE 1: Loading (Tampil saat pertama kali load) -->
+      <div id="prayer-loading" class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <div class="flex items-center justify-center gap-3">
+          <!-- Spinner Animation menggunakan border-t-transparent -->
+          <div class="animate-spin rounded-full h-6 w-6 border-3 border-emerald-500 border-t-transparent"></div>
+          <p class="text-slate-600 dark:text-slate-300">Mendeteksi lokasi & memuat jadwal shalat...</p>
+        </div>
+      </div>
+
+      <!-- STATE 2: Error (Tampil jika API gagal) -->
+      <div id="prayer-error" class="hidden p-6 rounded-3xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 shadow-sm">
+        <div class="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <p class="text-sm">
+            Gagal memuat jadwal shalat. 
+            <!-- 
+              ============================================
+              BUTTON "COBA LAGI" - PERUBAHAN BARU
+              ============================================
+              
+              PERUBAHAN PENTING:
+              - Ditambahkan ID "retry-button" untuk CSS targeting spesifik
+              - Ditambahkan class "retry-btn-isolated" untuk specificity tambahan
+              - Styling inline dengan Tailwind classes yang tidak akan di-override
+              
+              MASALAH YANG DIATASI:
+              CSS di Layout.astro menggunakan selector ".dark button" yang terlalu luas
+              dan meng-override styling button ini. Dengan ID dan class spesifik, kita
+              memastikan button ini menggunakan warnanya sendiri.
+              
+              LOGIKA CSS SPECIFICITY:
+              - Selector ".dark button" = 0,1,1 (0 ID, 1 class, 1 element) = specificity 11
+              - Selector "#retry-button.retry-btn-isolated" = 1,1,0 (1 ID, 1 class, 0 element) = specificity 110
+              - Karena 110 > 11, aturan kita akan menang (cascade win)
+              
+              WARNA YANG DIGUNAKAN:
+              - Light Mode: 
+                * Background: transparent (tidak ada)
+                * Text: rose-600 (#e11d48) dengan underline
+                * Hover: rose-700 (#be123c)
+              - Dark Mode:
+                * Background: transparent (tidak ada)
+                * Text: rose-400 (#fb7185) dengan underline
+                * Hover: rose-300 (#fda4af)
+            -->
+            <button 
+              id="retry-button" 
+              class="retry-btn-isolated underline font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors"
+              onclick="loadPrayerSchedule()"
+            >
+              Coba lagi
+            </button>
+          </p>
+        </div>
+      </div>
+
+      <!-- STATE 3: Content (Tampil jika data berhasil di-load) -->
+      <div id="prayer-content" class="hidden space-y-4">
+        
+        <!-- SUB-BAGIAN 3.1: SHALAT BERIKUTNYA -->
+        <!-- 
+             Komponen utama yang menampilkan informasi shalat terdekat.
+             Layout: 3 kolom pada desktop (Info | Jam | Countdown), 
+                     stack vertikal pada mobile.
+             
+             DESAIN:
+             - Gradient background untuk hierarki visual
+             - Decorative blur circles untuk estetika
+             - Real-time update setiap detik
+             
+             LOGIKA BARU:
+             - Setelah Isya lewat, otomatis menampilkan "Subuh (Besok)"
+             - Countdown diarahkan ke waktu Subuh hari berikutnya
+        -->
+        <div id="next-prayer-section" class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 relative overflow-hidden shadow-sm">
+          <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            
+            <!-- Kolom 1: Informasi Shalat -->
+            <div class="text-center md:text-left">
+              <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">
+                Shalat Berikutnya
+              </p>
+              <h2 id="next-prayer-name" class="text-4xl font-bold text-slate-800 dark:text-white">
+                --
+              </h2>
+              <p id="next-prayer-time" class="text-xl text-slate-600 dark:text-slate-300 mt-1">
+                -- : --
+              </p>
+            </div>
+            
+            <!-- Kolom 2: Jam Lokal Real-time -->
+            <div class="text-center">
+              <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Waktu Lokal Anda</p>
+              <div id="live-clock" class="text-3xl font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                00:00:00
+              </div>
+              <p id="user-location" class="text-xs text-slate-400 mt-1">Mendeteksi lokasi...</p>
+            </div>
+
+            <!-- Kolom 3: Countdown Timer -->
+            <div class="flex flex-col items-center">
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
+                Hitung Mundur
+              </span>
+              <span id="countdown-timer" class="text-3xl font-mono font-bold text-slate-800 dark:text-white mt-1">
+                00:00:00
+              </span>
+            </div>
+          </div>
+          
+          <!-- Decorative Elements: Blur circles untuk depth -->
+          <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-200 dark:bg-emerald-800 rounded-full opacity-20 blur-2xl pointer-events-none"></div>
+          <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-teal-200 dark:bg-teal-800 rounded-full opacity-20 blur-2xl pointer-events-none"></div>
+        </div>
+
+        <!-- SUB-BAGIAN 3.2: GRID KARTU SHALAT -->
+        <!-- 
+             Menampilkan 6 waktu shalat dalam bentuk kartu grid.
+             Setiap kartu memiliki warna tematik sesuai waktu:
+             - Imsak: Hijau (Emerald)
+             - Subuh: Biru Langit (Sky)
+             - Dzuhur: Kuning (Amber)
+             - Ashar: Oranye (Orange)
+             - Maghrib: Merah Muda (Rose)
+             - Isya: Ungu (Indigo)
+             
+             INTERAKSI:
+             - Kartu shalat berikutnya memiliki ring dan animasi pulse
+             - Hover effect pada semua kartu
+             
+             LOGIKA BARU:
+             - Setelah Isya lewat, menampilkan jadwal hari berikutnya
+             - Badge "SEGERA" muncul di kartu Subuh untuk besok
+        -->
+        <div id="today-schedule-section">
+          <!-- Header dengan badge tanggal -->
+          <div class="flex items-center justify-between mb-3">
+            <h3 id="schedule-title" class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <span class="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
+              Jadwal Shalat Hari Ini
+            </h3>
+            <span id="today-date-badge" class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium">
+              <!-- Diisi oleh JavaScript -->
+            </span>
+          </div>
+
+          <!-- Grid Container: Responsive columns -->
+          <div id="today-cards-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <!-- Kartu di-generate oleh JavaScript -->
+          </div>
+        </div>
+
+        <!-- CATATAN: Button "Lihat jadwal lengkap" DIHAPUS sesuai permintaan -->
+        
+      </div>
+    </div>
+
+    <!-- ============================================
+         BAGIAN UTAMA: AL-QUR'ANUL KARIM
+         ============================================
+         Bagian ini adalah konten utama halaman (existing).
+         Ditampilkan setelah widget jadwal shalat.
+    -->
+    <header class="text-center space-y-2 page-header pt-4 border-t border-slate-200 dark:border-slate-800">
+      <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Al-Qur'anul Karim</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-light">Baca dan pelajari kalam Allah</p>
+    </header>
+
+    <!-- Search Input -->
+    <div class="relative max-w-lg mx-auto">
+      <input
+        type="text"
+        id="search-input"
+        placeholder="Cari surat (Contoh: Al-Fatihah, 1)..."
+        class="w-full pl-12 pr-10 py-3 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all shadow-sm"
+        aria-label="Cari surat"
+      />
+      <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-4 top-3.5 h-5 w-5 text-slate-400 dark:text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <button id="clear-search-btn" class="hidden absolute right-3 top-3 text-slate-400 dark:text-slate-300 hover:text-slate-600 bg-slate-100 dark:bg-slate-800 rounded-full p-0.5 transition-colors focus:outline-none" aria-label="Bersihkan pencarian">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Daftar Surat Cards -->
+    <div id="surat-container" class="grid grid-cols-1 md:grid-cols-2 gap-4" role="list">
+      {daftarSurat.map((surat: any) => (
+        <a href={`/surat/${surat.nomor}`} class="surat-card group p-5 rounded-2xl border border-slate-100 hover:border-emerald-500 hover:shadow-xl transition-all duration-300 flex items-center justify-between" role="listitem" aria-label={`Buka surat ${surat.namaLatin}`}>
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-all transform group-hover:rotate-12">
+              {surat.nomor}
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                {surat.namaLatin}
+              </h3>
+              <p class="text-xs text-slate-400 dark:text-slate-400">{surat.arti} • {surat.jumlahAyat} Ayat</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="font-arabic text-2xl text-slate-700 dark:text-slate-200">{surat.nama}</p>
+          </div>
+          <span class="search-meta">{surat.namaLatin} {surat.arti} {surat.nomor}</span>
+        </a>
+      ))}
+    </div>
+
+    <div id="not-found" class="hidden text-center flex flex-col items-center justify-center space-y-4 text-slate-500 font-medium">
+      Surat tidak ditemukan.
+    </div>
+  </div>
+</Layout>
+
+<!-- ============================================
+     CLIENT-SIDE JAVASCRIPT
+     ============================================
+     Terdapat 2 modul utama:
+     1. Modul Jadwal Shalat (BARU) - Menggunakan ENV dari server
+     2. Modul Pencarian Surat (EXISTING)
+     
+     UPDATE PENTING PADA MODUL 1:
+     - Menambahkan fetch untuk jadwal besok
+     - Logika switch otomatis setelah Isya
+     - Perhitungan countdown untuk Subuh besok
+     
+     CATATAN KEAMANAN:
+     - Environment variables untuk PUBLIC_API_* aman di-expose ke client
+     - Token ipinfo.io adalah public token (bukan secret)
+     - Untuk production dengan token private, gunakan backend proxy
+-->
+
+<script define:vars={{ ENV }}>
+  // ==========================================
+  // MODUL 1: JADWAL SHALAT WIDGET
+  // ==========================================
+  
+  /**
+   * KONFIGURASI API DARI ENVIRONMENT VARIABLES
+   * ==========================================
+   * ENV di-inject oleh Astro dari server-side.
+   * Ini memungkinkan kita mengubah endpoint tanpa edit kode.
+   * 
+   * Struktur ENV:
+   * {
+   *   IPINFO_URL: "https://ipinfo.io?token=...",
+   *   MQ_KOTA_CARI: "https://api.myquran.com/v2/sholat/kota/cari",
+   *   MQ_JADWAL: "https://api.myquran.com/v2/sholat/jadwal"
+   * }
+   */
+  
+  // Destructuring untuk kemudahan akses
+  const { IPINFO_URL, MQ_KOTA_CARI, MQ_JADWAL } = ENV;
+  
+  // State management untuk interval IDs (penting untuk cleanup)
+  let countdownInterval = null;
+  let clockInterval = null;
+  
+  // State untuk menyimpan data jadwal besok (untuk switch setelah Isya)
+  let tomorrowData = null;
+  let isShowingTomorrow = false;
+  
+  /**
+   * FUNGSI UTAMA: loadPrayerSchedule()
+   * ===================================
+   * Fungsi async yang mengorkestrasi seluruh proses fetching data.
+   * 
+   * ALGORITMA UPDATE:
+   * 1. Cek cache terlebih dahulu (optimasi performa)
+   * 2. Jika cache tidak ada/expired, lakukan chain fetching:
+   *    ipinfo → kota → jadwal hari ini + jadwal besok
+   * 3. Simpan data besok untuk digunakan setelah Isya
+   * 4. Render data ke UI (hari ini atau besok tergantung waktu)
+   * 5. Start timer (clock & countdown)
+   * 
+   * PERUBAHAN BARU:
+   * - Sekarang fetch DUA jadwal: hari ini dan besok
+   * - Data besok disimpan untuk switch otomatis setelah Isya
+   * 
+   * ERROR HANDLING:
+   * - Setiap fetch dibungkus try-catch
+   * - Fallback ke Jakarta jika deteksi gagal
+   * - UI state berubah sesuai kondisi (loading/error/success)
+   */
+  async function loadPrayerSchedule() {
+    // Ambil referensi elemen UI untuk manipulasi state
+    const loadingEl = document.getElementById('prayer-loading');
+    const errorEl = document.getElementById('prayer-error');
+    const contentEl = document.getElementById('prayer-content');
+    
+    // Reset state: tampilkan loading, sembunyikan error & content
+    loadingEl?.classList.remove('hidden');
+    errorEl?.classList.add('hidden');
+    contentEl?.classList.add('hidden');
+    
+    try {
+      // STEP 0: CEK CACHE (Optimasi Performa)
+      // =====================================
+      // Menggunakan pola "Stale-While-Revalidate":
+      // - Jika data cache masih segar (< 1 jam), gunakan cache
+      // - Jika expired, fetch baru di background
+      
+      const cached = getCachedPrayerData();
+      if (cached && cached.today && cached.tomorrow) {
+        // Data cache ditemukan dan masih valid (termasuk data besok)
+        tomorrowData = cached.tomorrow;
+        renderPrayerData(cached.today, cached.tomorrow);
+        return; // Exit early, tidak perlu fetch API
+      }
+      
+      // STEP 1: DETEKSI LOKASI DARI IP
+      // ================================
+      // Menggunakan service ipinfo.io untuk mendapatkan:
+      // - city: Nama kota (contoh: "Jakarta")
+      // - country: Kode negara (contoh: "ID")
+      // - timezone: Timezone lokal (contoh: "Asia/Jakarta")
+      
+      const ipInfo = await fetch(IPINFO_URL).then(r => r.json());
+      const city = ipInfo.city; // Fallback default
+      
+      // Update UI lokasi sementara
+      const locationEl = document.getElementById('user-location');
+      if (locationEl) {
+        locationEl.textContent = `${city}, ${ipInfo.country || 'ID'}`;
+      }
+      
+      // STEP 2: CARI ID KOTA DI DATABASE MYQURAN
+      // =========================================
+      // API myquran.com memiliki database ID kota unik.
+      // Kita perlu mencocokkan nama kota dari ipinfo dengan ID di database.
+      // 
+      // Endpoint: GET /sholat/kota/cari/{nama_kota}
+      // Response: { status: true, data: [{ id: "1301", lokasi: "KOTA JAKARTA" }] }
+      
+      const kotaResponse = await fetch(`${MQ_KOTA_CARI}/${encodeURIComponent(city)}`);
+      const kotaData = await kotaResponse.json();
+      
+      // Validasi response
+      if (!kotaData.status || !kotaData.data || kotaData.data.length === 0) {
+        throw new Error(`Kota "${city}" tidak ditemukan di database jadwal shalat`);
+      }
+      
+      // Ambil ID kota pertama (paling relevan dengan pencarian)
+      const kotaId = kotaData.data[0].id;
+      const kotaNama = kotaData.data[0].lokasi;
+      
+      // STEP 3: AMBIL JADWAL SHALAT HARI INI DAN BESOK
+      // ================================================
+      // Format endpoint: /{id_kota}/{tahun}/{bulan}/{tanggal}
+      // Contoh: /1301/2026/2/18
+      
+      const now = new Date();
+      const tahun = now.getFullYear();
+      const bulan = now.getMonth() + 1; // JavaScript: Januari = 0
+      const tanggal = now.getDate();
+      
+      // Buat tanggal besok untuk fetch jadwal besok
+      const besok = new Date(now);
+      besok.setDate(besok.getDate() + 1);
+      const tahunBesok = besok.getFullYear();
+      const bulanBesok = besok.getMonth() + 1;
+      const tanggalBesok = besok.getDate();
+      
+      // Fetch jadwal hari ini dan besok secara paralel (Promise.all)
+      // Ini lebih efisien daripada fetch sequential (berurutan)
+      const [jadwalHariIni, jadwalBesok] = await Promise.all([
+        fetch(`${MQ_JADWAL}/${kotaId}/${tahun}/${bulan}/${tanggal}`).then(r => r.json()),
+        fetch(`${MQ_JADWAL}/${kotaId}/${tahunBesok}/${bulanBesok}/${tanggalBesok}`).then(r => r.json())
+      ]);
+      
+      if (!jadwalHariIni.status || !jadwalHariIni.data) {
+        throw new Error('Gagal mengambil data jadwal shalat hari ini dari server');
+      }
+      
+      if (!jadwalBesok.status || !jadwalBesok.data) {
+        throw new Error('Gagal mengambil data jadwal shalat besok dari server');
+      }
+      
+      // Gabungkan semua data yang diperlukan untuk render
+      const todayData = {
+        ...jadwalHariIni.data,      // Spread operator: copy semua properti
+        kota: kotaNama,             // Tambahan: nama lengkap kota
+        fetchedAt: Date.now()       // Timestamp untuk cache validation
+      };
+      
+      const tomorrowDataRaw = {
+        ...jadwalBesok.data,
+        kota: kotaNama,
+        fetchedAt: Date.now()
+      };
+      
+      // Simpan ke state global untuk digunakan nanti
+      tomorrowData = tomorrowDataRaw;
+      
+      // Simpan ke localStorage untuk penggunaan berikutnya
+      cachePrayerData({ today: todayData, tomorrow: tomorrowDataRaw });
+      
+      // Render ke UI dengan kedua data (hari ini dan besok)
+      renderPrayerData(todayData, tomorrowDataRaw);
+      
+    } catch (error) {
+      // ERROR HANDLING: Tampilkan error state
+      console.error('Error loading prayer schedule:', error);
+      loadingEl?.classList.add('hidden');
+      errorEl?.classList.remove('hidden');
+    }
+  }
+  
+  /**
+   * FUNGSI CACHE: getCachedPrayerData()
+   * ===================================
+   * Mengimplementasikan client-side caching menggunakan localStorage.
+   * 
+   * ALGORITMA CACHE:
+   * 1. Ambil item dari localStorage dengan key 'prayer_widget_cache'
+   * 2. Parse JSON
+   * 3. Hitung umur data: now - fetchedAt
+   * 4. Jika umur > 1 jam (3600000 ms), hapus cache dan return null
+   * 5. Jika valid, return data (sekarang berisi today dan tomorrow)
+   * 
+   * KEUNTUNGAN:
+   * - Mengurangi API calls (hemat bandwidth)
+   * - Load instan untuk user yang kembali dalam 1 jam
+   * - Tidak ada flash loading setiap refresh
+   * - Data besok sudah tersedia untuk switch setelah Isya
+   */
+  function getCachedPrayerData() {
+    try {
+      const cached = localStorage.getItem('prayer_widget_cache');
+      if (!cached) return null; // Tidak ada cache
+      
+      const data = JSON.parse(cached);
+      const age = Date.now() - (data.today?.fetchedAt || 0);
+      const MAX_AGE = 3600000; // 1 jam dalam milidetik
+      
+      // Cache expired
+      if (age > MAX_AGE) {
+        localStorage.removeItem('prayer_widget_cache');
+        return null;
+      }
+      
+      return data;
+    } catch (e) {
+      // Error parsing atau localStorage tidak tersedia
+      return null;
+    }
+  }
+  
+  /**
+   * FUNGSI CACHE: cachePrayerData(data)
+   * ===================================
+   * Menyimpan data ke localStorage dengan timestamp.
+   * 
+   * PARAMETER BARU:
+   * data = { today: {...}, tomorrow: {...} }
+   * 
+   * TRY-CATCH: Diperlukan karena localStorage bisa:
+   * - Penuh (QuotaExceededError)
+   * - Tidak tersedia (private mode Safari)
+   * - Diblokir oleh browser settings
+   */
+  function cachePrayerData(data) {
+    try {
+      localStorage.setItem('prayer_widget_cache', JSON.stringify(data));
+    } catch (e) {
+      console.warn('Gagal menyimpan cache:', e);
+      // Continue tanpa cache (non-critical error)
+    }
+  }
+  
+  /**
+   * FUNGSI RENDER: renderPrayerData(todayData, tomorrowData)
+   * =========================================================
+   * Mengubah data mentah dari API menjadi tampilan HTML.
+   * 
+   * LOGIKA UTAMA UPDATE:
+   * 1. Cek apakah sudah lewat waktu Isya hari ini
+   * 2. Jika ya: gunakan data besok, tampilkan "Subuh (Besok)"
+   * 3. Jika tidak: gunakan data hari ini, tampilkan shalat berikutnya
+   * 4. Parse waktu shalat (string "HH:MM") ke detik
+   * 5. Bandingkan dengan waktu sekarang
+   * 6. Tentukan shalat berikutnya (selisih terkecil positif)
+   * 7. Generate HTML untuk 6 kartu shalat
+   * 8. Start timer (clock & countdown)
+   * 
+   * PARAMETER:
+   * - todayData: Object jadwal hari ini dari API
+   * - tomorrowData: Object jadwal besok dari API (untuk switch setelah Isya)
+   * 
+   * STRUKTUR DATA:
+   * {
+   *   lokasi: "KOTA JAKARTA",
+   *   daerah: "DKI JAKARTA",
+   *   jadwal: {
+   *     tanggal: "Rabu, 18/02/2026",
+   *     imsak: "04:31",
+   *     subuh: "04:41",
+   *     dzuhur: "12:10",
+   *     ashar: "15:21",
+   *     maghrib: "18:18",
+   *     isya: "19:28"
+   *   }
+   * }
+   */
+  function renderPrayerData(todayData, tomorrowData) {
+    // Referensi elemen UI
+    const loadingEl = document.getElementById('prayer-loading');
+    const contentEl = document.getElementById('prayer-content');
+    
+    // State transition: loading → content
+    loadingEl?.classList.add('hidden');
+    contentEl?.classList.remove('hidden');
+    
+    // ==========================================
+    // LOGIKA BARU: CEK APAKAH SUDAH LEWAT ISYA
+    // ==========================================
+    // Algoritma:
+    // 1. Ambil waktu Isya hari ini dari todayData
+    // 2. Konversi ke detik sejak tengah malam
+    // 3. Bandingkan dengan waktu sekarang
+    // 4. Jika sekarang > Isya, maka switch ke besok
+    
+    const now = new Date();
+    const currentTotalSeconds = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
+    
+    // Parse waktu Isya hari ini
+    const isyaTime = todayData.jadwal.isya; // Format: "HH:MM"
+    const [isyaHours, isyaMinutes] = isyaTime.split(':').map(Number);
+    const isyaSeconds = (isyaHours * 3600) + (isyaMinutes * 60);
+    
+    // Cek apakah sudah lewat Isya
+    const isAfterIsya = currentTotalSeconds > isyaSeconds;
+    
+    // Tentukan data yang akan digunakan untuk render
+    let activeData = todayData;
+    let isTomorrow = false;
+    
+    if (isAfterIsya && tomorrowData) {
+      // Jika sudah lewat Isya dan data besok tersedia
+      activeData = tomorrowData;
+      isTomorrow = true;
+      isShowingTomorrow = true;
+    } else {
+      isShowingTomorrow = false;
+    }
+    
+    const jadwal = activeData.jadwal;
+    
+    // Update informasi lokasi
+    const locationEl = document.getElementById('user-location');
+    if (locationEl) {
+      locationEl.textContent = `${activeData.lokasi}, ${activeData.daerah}`;
+    }
+    
+    // Update badge tanggal
+    const dateBadge = document.getElementById('today-date-badge');
+    if (dateBadge) {
+      dateBadge.textContent = jadwal.tanggal;
+    }
+    
+    // Update judul section (Hari Ini atau Besok)
+    const scheduleTitle = document.getElementById('schedule-title');
+    if (scheduleTitle) {
+      if (isTomorrow) {
+        scheduleTitle.innerHTML = '<span class="w-1.5 h-6 bg-emerald-500 rounded-full"></span>Jadwal Shalat Hari Besok';
+      } else {
+        scheduleTitle.innerHTML = '<span class="w-1.5 h-6 bg-emerald-500 rounded-full"></span>Jadwal Shalat Hari Ini';
+      }
+    }
+    
+    // KONFIGURASI WAKTU SHALAT
+    // ========================
+    // Urutan penting untuk logika next prayer
+    const prayerOrder = ['imsak', 'subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+    
+    // Mapping key ke label yang readable
+    const prayerLabels = {
+      imsak: 'Imsak',
+      subuh: 'Subuh',
+      dzuhur: 'Dzuhur',
+      ashar: 'Ashar',
+      maghrib: 'Maghrib',
+      isya: 'Isya'
+    };
+    
+    // Sistem warna: Setiap shalat punya identitas warna
+    // Format: { text: kelas warna teks, border: kelas border, bg: kelas background }
+    const prayerColors = {
+      imsak: { 
+        text: 'text-emerald-600 dark:text-emerald-400', 
+        border: 'border-emerald-200 dark:border-emerald-800', 
+        bg: 'bg-emerald-50 dark:bg-emerald-900/20' 
+      },
+      subuh: { 
+        text: 'text-sky-600 dark:text-sky-400', 
+        border: 'border-sky-200 dark:border-sky-800', 
+        bg: 'bg-sky-50 dark:bg-sky-900/20' 
+      },
+      dzuhur: { 
+        text: 'text-amber-600 dark:text-amber-400', 
+        border: 'border-amber-200 dark:border-amber-800', 
+        bg: 'bg-amber-50 dark:bg-amber-900/20' 
+      },
+      ashar: { 
+        text: 'text-orange-600 dark:text-orange-400', 
+        border: 'border-orange-200 dark:border-orange-800', 
+        bg: 'bg-orange-50 dark:bg-orange-900/20' 
+      },
+      maghrib: { 
+        text: 'text-rose-600 dark:text-rose-400', 
+        border: 'border-rose-200 dark:border-rose-800', 
+        bg: 'bg-rose-50 dark:bg-rose-900/20' 
+      },
+      isya: { 
+        text: 'text-indigo-600 dark:text-indigo-400', 
+        border: 'border-indigo-200 dark:border-indigo-800', 
+        bg: 'bg-indigo-50 dark:bg-indigo-900/20' 
+      }
+    };
+    
+    // ==========================================
+    // ALGORITMA: MENENTUKAN SHALAT BERIKUTNYA
+    // ==========================================
+    // Konsep: Konversi semua waktu ke "detik sejak tengah malam"
+    // lalu cari selisih terkecil yang positif
+    
+    let nextPrayerKey = '';
+    let minDiff = Infinity;
+    let isNextPrayerTomorrow = false;
+    
+    // Jika sudah lewat Isya (isTomorrow = true), maka next prayer adalah Subuh besok
+    if (isTomorrow) {
+      nextPrayerKey = 'subuh';
+      const subuhTime = jadwal.subuh; // Waktu Subuh besok
+      const [subuhHours, subuhMinutes] = subuhTime.split(':').map(Number);
+      const subuhSeconds = (subuhHours * 3600) + (subuhMinutes * 60);
+      
+      // Hitung selisih ke Subuh besok
+      // Karena sudah lewat tengah malam, kita perlu tambah 24 jam
+      const secondsUntilMidnight = (24 * 3600) - currentTotalSeconds;
+      minDiff = secondsUntilMidnight + subuhSeconds;
+      isNextPrayerTomorrow = true;
+    } else {
+      // Iterasi linear (O(n)) untuk mencari next prayer hari ini
+      prayerOrder.forEach(key => {
+        const timeStr = jadwal[key]; // Format: "HH:MM"
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const prayerSeconds = (hours * 3600) + (minutes * 60);
+        
+        // Hitung selisih
+        let diff = prayerSeconds - currentTotalSeconds;
+        
+        // Jika sudah lewat (diff negatif) dan bukan isya:
+        // Skip untuk hari ini, akan dihitung besok
+        if (diff <= 0) {
+          if (key === 'isya') {
+            // Khusus isya: masih bisa ditampilkan sebagai "segera" 
+            // meski sudah lewat beberapa menit
+            diff += (24 * 3600); // Tambah 24 jam untuk besok
+          } else {
+            return; // Continue ke iterasi berikutnya (skip)
+          }
+        }
+        
+        // Update jika ini adalah selisih terkecil
+        if (diff < minDiff) {
+          minDiff = diff;
+          nextPrayerKey = key;
+        }
+      });
+    }
+    
+    // Fallback: Jika semua sudah lewat (edge case), next adalah subuh besok
+    if (!nextPrayerKey) {
+      nextPrayerKey = 'subuh';
+      // Asumsi subuh jam 04:30
+      minDiff = ((4 * 3600) + (30 * 60)) - currentTotalSeconds + (24 * 3600);
+      isNextPrayerTomorrow = true;
+    }
+    
+    // ==========================================
+    // UPDATE UI: NEXT PRAYER (LOGIKA BARU)
+    // ==========================================
+    const nextNameEl = document.getElementById('next-prayer-name');
+    const nextTimeEl = document.getElementById('next-prayer-time');
+    
+    if (nextNameEl) {
+      if (isNextPrayerTomorrow) {
+        // Jika next prayer adalah besok, tambahkan "(Besok)"
+        nextNameEl.textContent = `${prayerLabels[nextPrayerKey]} (Besok)`;
+      } else {
+        nextNameEl.textContent = prayerLabels[nextPrayerKey];
+      }
+    }
+    
+    if (nextTimeEl) {
+      nextTimeEl.textContent = jadwal[nextPrayerKey];
+    }
+    
+    // ==========================================
+    // GENERATE KARTU SHALAT (LOGIKA BARU)
+    // ==========================================
+    // Menggunakan Array.map() untuk transformasi data ke HTML string
+    // lalu .join('') untuk menggabungkan
+    
+    const cardsContainer = document.getElementById('today-cards-container');
+    if (cardsContainer) {
+      cardsContainer.innerHTML = prayerOrder.map(key => {
+        const isNext = key === nextPrayerKey;
+        const colors = prayerColors[key];
+        
+        // Conditional styling dengan ternary operator
+        const activeClass = isNext 
+          ? 'ring-2 ring-emerald-500 scale-105 shadow-lg z-10 transform' // Highlight
+          : 'opacity-90 hover:opacity-100 hover:scale-[1.02] transition-all duration-300'; // Normal
+        
+        // Badge "SEGERA" hanya untuk next prayer
+        // Jika isTomorrow dan key adalah subuh, tampilkan "SEGERA"
+        const badge = isNext 
+          ? '<span class="text-[10px] mt-1 font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">SEGERA</span>' 
+          : '';
+        
+        // Template literal untuk HTML
+        return `
+          <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${colors.text} ${colors.border} ${colors.bg} shadow-sm ${activeClass}">
+            <span class="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">${prayerLabels[key]}</span>
+            <span class="text-xl font-bold">${jadwal[key]}</span>
+            ${badge}
+          </div>
+        `;
+      }).join(''); // Gabungkan array string jadi satu string HTML
+    }
+    
+    // START TIMER
+    // ===========
+    startLiveClock();
+    startCountdown(jadwal, nextPrayerKey, minDiff, isNextPrayerTomorrow);
+  }
+  
+  /**
+   * FUNGSI TIMER: startLiveClock()
+   * ===============================
+   * Menampilkan jam lokal yang update setiap detik.
+   * 
+   * PENTING: Selalu clear interval sebelumnya untuk mencegah
+   * multiple intervals berjalan bersamaan (memory leak).
+   */
+  function startLiveClock() {
+    const clockEl = document.getElementById('live-clock');
+    if (!clockEl) return;
+    
+    // Cleanup: Hentikan interval lama jika ada
+    if (clockInterval) clearInterval(clockInterval);
+    
+    const update = () => {
+      const now = new Date();
+      // Format Indonesia: 24 jam dengan leading zero
+      clockEl.textContent = now.toLocaleTimeString('id-ID', { 
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+    
+    update(); // Jalankan segera (tidak tunggu 1 detik pertama)
+    clockInterval = window.setInterval(update, 1000);
+  }
+  
+  /**
+   * FUNGSI TIMER: startCountdown(jadwal, targetKey, initialDiff, isTomorrow)
+   * =========================================================================
+   * Menghitung mundur ke waktu shalat berikutnya.
+   * 
+   * ALGORITMA UPDATE:
+   * 1. Simpan sisa detik dalam closure (remainingSeconds)
+   * 2. Setiap detik: decrement dan format ke HH:MM:SS
+   * 3. Jika mencapai 0: 
+   *    - Jika isTomorrow = false dan target adalah Isya, 
+   *      maka reload untuk switch ke besok
+   *    - Jika tidak, lanjut ke shalat berikutnya
+   * 
+   * PARAMETER BARU:
+   * - isTomorrow: Boolean yang menandakan apakah countdown ke hari berikutnya
+   */
+  function startCountdown(jadwal, targetKey, initialDiff, isTomorrow = false) {
+    const countdownEl = document.getElementById('countdown-timer');
+    if (!countdownEl) return;
+    
+    // Cleanup
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    // State untuk countdown
+    let remainingSeconds = Math.floor(initialDiff);
+    
+    const update = () => {
+      // Base case: Countdown selesai
+      if (remainingSeconds <= 0) {
+        countdownEl.textContent = '00:00:00';
+        
+        // Jika countdown untuk hari ini selesai dan target adalah Isya,
+        // maka perlu switch ke besok
+        if (!isTomorrow && targetKey === 'isya') {
+          // Auto-reload untuk mendapatkan jadwal besok
+          setTimeout(() => loadPrayerSchedule(), 2000);
+        } else if (isTomorrow && targetKey === 'subuh') {
+          // Jika countdown Subuh besok selesai, reload untuk update UI
+          setTimeout(() => loadPrayerSchedule(), 2000);
+        } else {
+          // Lanjut ke shalat berikutnya dalam hari yang sama
+          setTimeout(() => loadPrayerSchedule(), 2000);
+        }
+        return;
+      }
+      
+      // Konversi detik ke HH:MM:SS
+      const hours = Math.floor(remainingSeconds / 3600);
+      const minutes = Math.floor((remainingSeconds % 3600) / 60);
+      const seconds = remainingSeconds % 60;
+      
+      // Format dengan leading zero (padStart)
+      countdownEl.textContent = 
+        `${String(hours).padStart(2, '0')}:` +
+        `${String(minutes).padStart(2, '0')}:` +
+        `${String(seconds).padStart(2, '0')}`;
+      
+      remainingSeconds--; // Decrement
+    };
+    
+    update(); // Jalankan segera
+    countdownInterval = window.setInterval(update, 1000);
+  }
+  
+  // INISIALISASI: Jalankan saat DOM siap
+  document.addEventListener('DOMContentLoaded', loadPrayerSchedule);
+  
+  
+  // ==========================================
+  // MODUL 2: PENCARIAN SURAT (EXISTING)
+  // ==========================================
+  
+  const searchInput = document.getElementById('search-input');
+  const clearBtn = document.getElementById('clear-search-btn');
+  const suratCards = Array.from(document.querySelectorAll('.surat-card'));
+  const notFound = document.getElementById('not-found');
+
+  /**
+   * FUNGSI: handleSearch(keyword)
+   * =============================
+   * Filter kartu surat berdasarkan keyword.
+   * 
+   * LOGIKA:
+   * 1. Ambil text dari elemen .search-meta (hidden text dengan semua info)
+   * 2. Convert ke lowercase untuk case-insensitive search
+   * 3. Cek apakah includes keyword
+   * 4. Toggle display: flex/none
+   * 5. Toggle not-found message
+   */
+  const handleSearch = (keyword) => {
+    let hasResult = false;
+    
+    suratCards.forEach((card) => {
+      // Query selector untuk mendapatkan metadata tersembunyi
+      const metaEl = card.querySelector('.search-meta');
+      const metaText = (metaEl?.textContent || '').toLowerCase();
+      
+      // Case-insensitive includes check
+      if (metaText.includes(keyword)) {
+        card.style.display = 'flex';
+        hasResult = true;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+    
+    // Toggle not found message
+    if (notFound) {
+      notFound.style.display = hasResult ? 'none' : 'block';
+    }
+  };
+
+  // EVENT LISTENER: Input change (real-time search)
+  searchInput?.addEventListener('input', (e) => {
+    const val = e.currentTarget.value.toLowerCase();
+
+    // Toggle clear button visibility
+    if (val.length > 0) {
+      clearBtn?.classList.remove('hidden');
+    } else {
+      clearBtn?.classList.add('hidden');
+    }
+
+    handleSearch(val);
+  });
+
+  // EVENT LISTENER: Clear button click
+  clearBtn?.addEventListener('click', () => {
+    if (!searchInput) return;
+    
+    // Reset state
+    searchInput.value = '';
+    clearBtn.classList.add('hidden');
+    handleSearch('');
+    searchInput.focus(); // Return focus ke input
+  });
+</script>
+
+<!-- ============================================
+     GLOBAL STYLES & OVERRIDES
+     ============================================
+     CSS untuk memastikan konsistensi dark mode
+     dan override default Tailwind jika diperlukan
+     
+     PERUBAHAN BARU: CSS SPESIFIK UNTUK BUTTON "COBA LAGI"
+     ============================================
+     
+     Masalah:
+     Layout.astro memiliki CSS global: .dark button { ... }
+     yang meng-override styling button "Coba Lagi".
+     
+     Solusi:
+     1. Gunakan ID selector (#retry-button) untuk specificity tinggi
+     2. Tambahkan !important untuk memastikan override
+     3. Definisikan warna spesifik yang tidak bergantung pada variabel CSS global
+     
+     Specificity Calculation:
+     - .dark button = 0,1,1 (specificity: 11)
+     - #retry-button = 1,0,0 (specificity: 100)
+     - #retry-button.retry-btn-isolated = 1,1,0 (specificity: 110)
+     
+     Karena 110 > 11, aturan kita akan menang.
+-->
+<style is:global>
+  /* Search Input Styling dengan CSS Variables */
+  #search-input {
+    background-color: var(--card-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--nav-border) !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+  }
+  
+  #search-input::placeholder { 
+    color: var(--muted) !important; 
+  }
+
+  /* Dark Mode Overrides untuk Search */
+  .dark #search-input {
+    background-color: rgba(255,255,255,0.02) !important;
+    color: #f8fafc !important;
+    border-color: rgba(148,163,184,0.12) !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+  }
+
+  /* Force warna judul surat di dark mode */
+  .dark .surat-card h3 {
+    color: #f8fafc !important;
+  }
+  
+  /* Override untuk prayer widget labels */
+  .dark #prayer-widget-container label {
+    color: #f8fafc !important;
+  }
+
+  /* ============================================
+     PERBAIKAN BARU: BUTTON "COBA LAGI" ISOLATION
+     ============================================
+     
+     Tujuan: Memastikan button "Coba Lagi" tidak terpengaruh oleh
+     CSS global .dark button dari Layout.astro
+     
+     Strategi:
+     1. ID Selector (#retry-button) = Specificity 100
+     2. Class tambahan (.retry-btn-isolated) = Specificity 110
+     3. !important = Override semua aturan lain
+     
+     Warna yang Ditetapkan:
+     - Light Mode:
+       * Text: rose-600 (#e11d48)
+       * Hover Text: rose-700 (#be123c)
+       * Background: transparent (tidak ada)
+       * Text Decoration: underline
+     
+     - Dark Mode:
+       * Text: rose-400 (#fb7185) 
+       * Hover Text: rose-300 (#fda4af)
+       * Background: transparent (tidak ada)
+       * Text Decoration: underline
+  */
+  
+  /* 
+    Base State - Light Mode
+    Menggunakan warna Rose Tailwind yang spesifik
+    dengan !important untuk memastikan tidak di-override
+  */
+  #retry-button.retry-btn-isolated {
+    color: #e11d48 !important; /* rose-600 */
+    background-color: transparent !important;
+    border: none !important;
+    text-decoration: underline !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: color 0.2s ease !important;
+  }
+
+  /* Hover State - Light Mode */
+  #retry-button.retry-btn-isolated:hover {
+    color: #be123c !important; /* rose-700 */
+    background-color: transparent !important;
+  }
+
+  /* 
+    Dark Mode Override
+    Specificity: .dark #retry-button.retry-btn-isolated = 1,1,1 (111)
+    Lebih tinggi dari .dark button (0,1,1 = 11)
+  */
+  .dark #retry-button.retry-btn-isolated {
+    color: #fb7185 !important; /* rose-400 */
+    background-color: transparent !important;
+    border: none !important;
+  }
+
+  /* Hover State - Dark Mode */
+  .dark #retry-button.retry-btn-isolated:hover {
+    color: #fda4af !important; /* rose-300 */
+    background-color: transparent !important;
+  }
+
+  /* 
+    Fokus State (Accessibility)
+    Menambahkan outline yang visible untuk keyboard navigation
+  */
+  #retry-button.retry-btn-isolated:focus-visible {
+    outline: 2px solid #f43f5e !important; /* rose-500 */
+    outline-offset: 2px !important;
+    border-radius: 2px !important;
+  }
+
+  .dark #retry-button.retry-btn-isolated:focus-visible {
+    outline-color: #fb7185 !important; /* rose-400 */
+  }
+
+  /* 
+    Active State (Saat diklik)
+    Memberikan visual feedback saat button ditekan
+  */
+  #retry-button.retry-btn-isolated:active {
+    color: #9f1239 !important; /* rose-800 */
+    transform: translateY(1px) !important;
+  }
+
+  .dark #retry-button.retry-btn-isolated:active {
+    color: #ffe4e6 !important; /* rose-100 */
+  }
+</style>
