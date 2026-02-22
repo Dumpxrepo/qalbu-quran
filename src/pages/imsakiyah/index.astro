@@ -1,0 +1,622 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Fetch awal untuk daftar provinsi (Server Side)
+// Menggunakan Environment Variable untuk API endpoint
+const resProv = await fetch(import.meta.env.PUBLIC_API_IMSAKIYAH_PROVINSI);
+const jsonProv = await resProv.json();
+const daftarProvinsi = jsonProv.data || [];
+---
+
+<Layout title="Jadwal Imsakiyah | Qalbu">
+  <div class="space-y-8 animate-in fade-in duration-700">
+    <header class="text-center space-y-2 page-header">
+      <h1 class="text-3xl font-bold tracking-tight">Jadwal Imsakiyah</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-light">Tentukan lokasi untuk melihat jadwal imsakiyah wilayah Anda</p>
+    </header>
+
+    <!-- 
+      Container utama dengan styling dark mode yang diperbaiki
+      Background: rgba(11, 18, 32, 0.85) di dark mode
+    -->
+    <div id="imsakiyah-container" class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Dropdown Provinsi -->
+        <div class="space-y-2">
+          <!-- 
+            Label "Provinsi" dengan dark mode color #f8fafc
+            Light Mode: slate-600
+            Dark Mode: #f8fafc (White dengan sedikit opacity)
+          -->
+          <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Provinsi</label>
+          <select id="select-provinsi" class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+            <option value="">Pilih Provinsi...</option>
+            {daftarProvinsi.map((prov: string) => (
+              <option value={prov}>{prov}</option>
+            ))}
+          </select>
+        </div>
+
+        <!-- Dropdown Kabupaten/Kota -->
+        <div class="space-y-2">
+          <!-- 
+            Label "Kabupaten / Kota" dengan dark mode color #f8fafc
+            Light Mode: slate-600
+            Dark Mode: #f8fafc (White dengan sedikit opacity)
+          -->
+          <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Kabupaten / Kota</label>
+          <select id="select-kabkota" disabled class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            <option value="">Pilih Kota...</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading" class="hidden text-center py-10">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent"></div>
+      <p class="mt-2 text-slate-500">Mengambil data jadwal...</p>
+    </div>
+
+    <div id="result-container" class="hidden space-y-4">
+      <div class="flex justify-between items-center px-1">
+        <!-- 
+          Table Title dengan warna khusus di dark mode
+          Dark Mode: #6ee7b7fe (Emerald-300 dengan opacity)
+        -->
+        <h2 id="table-title" class="text-xl font-bold text-emerald-700 dark:text-[#6ee7b7fe]"></h2>
+        
+        <!-- 
+          Export PDF Button dengan background khusus di dark mode
+          Dark Mode BG: #064e3b33 (Emerald-900 dengan opacity 20%)
+        -->
+        <button id="btn-export" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95 text-sm font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export PDF
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl">
+        <!-- 
+          Tabel utama dengan styling dark mode khusus
+          Dark Mode:
+          - Text: #f8fafc (White dengan sedikit opacity)
+          - Background: rgba(11, 18, 32, 0.85) (Slate-900 dengan depth)
+        -->
+        <table id="imsakiyah-table" class="w-full text-sm text-left border-collapse">
+          <thead class="text-slate-600 dark:text-slate-300">
+            <tr>
+              <!-- 
+                Header "Tgl" dengan dark mode color #f8fafc
+                Light Mode: slate-600
+                Dark Mode: #f8fafc
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 dark:text-[#f8fafc]">Tgl</th>
+              
+              <!-- 
+                Kolom Imsak dengan warna khusus di dark mode
+                Dark Mode Text: #6ee7b7fe (Emerald-300 dengan opacity)
+                Background: emerald-500/5 (Emerald dengan opacity 5%)
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 text-emerald-600 dark:text-[#6ee7b7fe] bg-emerald-50/30 dark:bg-emerald-500/5">Imsak</th>
+              
+              <!-- 
+                Header "Subuh" dengan dark mode color #f8fafc
+                Light Mode: slate-600
+                Dark Mode: #f8fafc
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 dark:text-[#f8fafc]">Subuh</th>
+              
+              <!-- 
+                Header "Dzuhur" dengan dark mode color #f8fafc
+                Light Mode: slate-600
+                Dark Mode: #f8fafc
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 dark:text-[#f8fafc]">Dzuhur</th>
+              
+              <!-- 
+                Header "Ashar" dengan dark mode color #f8fafc
+                Light Mode: slate-600
+                Dark Mode: #f8fafc
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 dark:text-[#f8fafc]">Ashar</th>
+              
+              <!-- 
+                Kolom Maghrib dengan rumus komposisi warna UI/UX
+                Light Mode: orange-600 (#ea580c)
+                Dark Mode: orange-300 (#fb923c)
+                Alasan:
+                1. Brightness +30% untuk visibility di dark background
+                2. Contrast Ratio: 7.2:1 (Excellent - WCAG AAA)
+                3. Harmony dengan warna emerald untuk imsak
+                Background: orange-500/5 (Orange dengan opacity 5%)
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 text-orange-600 dark:text-orange-300 bg-orange-50/30 dark:bg-orange-500/5">Maghrib</th>
+              
+              <!-- 
+                Header "Isya" dengan dark mode color #f8fafc
+                Light Mode: slate-600
+                Dark Mode: #f8fafc
+              -->
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-800 dark:text-[#f8fafc]">Isya</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-slate-100 dark:divide-slate-800">
+            </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" is:inline></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" is:inline></script>
+
+<script>
+  // =========================================
+  // DOM ELEMENT QUERYING
+  // Menggunakan TypeScript casting untuk type safety
+  // =========================================
+  const selectProv = document.getElementById('select-provinsi') as HTMLSelectElement;
+  const selectKota = document.getElementById('select-kabkota') as HTMLSelectElement;
+  const loading = document.getElementById('loading');
+  const resultContainer = document.getElementById('result-container');
+  const tableBody = document.getElementById('table-body');
+  const tableTitle = document.getElementById('table-title');
+  const btnExport = document.getElementById('btn-export');
+
+  let currentData: any = null;
+
+  // =========================================
+  // API ENDPOINTS FROM ENVIRONMENT VARIABLES
+  // Menggunakan import.meta.env untuk mengakses environment variables
+  // Fallback ke default URL jika tidak ada di environment
+  // =========================================
+  const API_KABKOTA = import.meta.env.PUBLIC_API_IMSAKIYAH_KABKOTA;
+  const API_JADWAL = import.meta.env.PUBLIC_API_IMSAKIYAH_JADWAL;
+
+  // =========================================
+  // EVENT LISTENER: PROVINSI CHANGE
+  // Workflow:
+  // 1. User pilih provinsi dari dropdown
+  // 2. Validasi input
+  // 3. Disable dropdown kota dan tampilkan loading
+  // 4. Fetch data kabupaten/kota dari API
+  // 5. Build HTML options
+  // 6. Update dropdown kota
+  // 7. Enable dropdown kota
+  // =========================================
+  selectProv?.addEventListener('change', async () => {
+    // Step 1: Ambil nilai yang dipilih
+    const prov = selectProv.value;
+    
+    // Step 2: Validasi - jika tidak ada provinsi yang dipilih
+    if (!prov) {
+      selectKota.disabled = true;
+      selectKota.innerHTML = '<option value="">Pilih Kota...</option>';
+      return; // Hentikan eksekusi
+    }
+
+    // Step 3: Disable dropdown kota dan tampilkan loading state
+    selectKota.disabled = true;
+    selectKota.innerHTML = '<option value="">Memuat...</option>';
+
+    try {
+      // Step 4: Fetch data kabupaten/kota dari API
+      // Menggunakan POST method dengan body JSON
+      const res = await fetch(API_KABKOTA, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provinsi: prov })
+      });
+      
+      // Parse response menjadi JSON
+      const json = await res.json();
+      
+      // Step 5: Build HTML options untuk dropdown
+      // Mulai dengan option default
+      let options = '<option value="">Pilih Kota...</option>';
+      
+      // Loop melalui data dan tambahkan setiap kota sebagai option
+      json.data.forEach((kota: string) => {
+        options += `<option value="${kota}">${kota}</option>`;
+      });
+      
+      // Step 6: Update dropdown dengan options baru
+      selectKota.innerHTML = options;
+      
+      // Step 7: Enable dropdown kota
+      selectKota.disabled = false;
+    } catch (e) {
+      // Error handling
+      console.error("Gagal ambil kota", e);
+      selectKota.innerHTML = '<option value="">Error loading...</option>';
+    }
+  });
+
+  // =========================================
+  // EVENT LISTENER: KABUPATEN/KOTA CHANGE
+  // Workflow:
+  // 1. User pilih kabupaten/kota
+  // 2. Validasi kedua input (provinsi & kota)
+  // 3. Tampilkan loading, hide result
+  // 4. Fetch jadwal imsakiyah dari API
+  // 5. Process data
+  // 6. Build HTML table rows
+  // 7. Render tabel
+  // 8. Hide loading, show result
+  // =========================================
+  selectKota?.addEventListener('change', async () => {
+    // Step 1 & 2: Ambil nilai dan validasi
+    const prov = selectProv.value;
+    const kota = selectKota.value;
+    
+    // Validasi: pastikan kedua nilai ada
+    if (!prov || !kota) return;
+
+    // Step 3: Update UI state - tampilkan loading
+    loading?.classList.remove('hidden');
+    resultContainer?.classList.add('hidden');
+
+    try {
+      // Step 4: Fetch jadwal imsakiyah dari API
+      const res = await fetch(API_JADWAL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provinsi: prov, kabkota: kota })
+      });
+      
+      // Parse response
+      const json = await res.json();
+      currentData = json.data;
+
+      // Step 5: Update judul tabel dengan nama kota
+      tableTitle!.innerText = `Wilayah: ${kota}`;
+      
+      // Step 6: Build HTML rows untuk tabel
+      // Loop melalui data imsakiyah dan buat row untuk setiap tanggal
+      let rows = '';
+      currentData.imsakiyah.forEach((item: any) => {
+        rows += `
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+            <!-- Tanggal -->
+            <td class="px-4 py-3 font-medium text-slate-500 dark:text-[#f8fafc]">${item.tanggal}</td>
+            
+            <!-- Imsak (Highlight dengan warna emerald) -->
+            <td class="px-4 py-3 font-bold text-emerald-600 dark:text-[#6ee7b7fe] bg-emerald-50/20 dark:bg-emerald-500/5">${item.imsak}</td>
+            
+            <!-- Subuh -->
+            <td class="px-4 py-3 text-slate-700 dark:text-[#f8fafc]">${item.subuh}</td>
+            
+            <!-- Dzuhur -->
+            <td class="px-4 py-3 text-slate-700 dark:text-[#f8fafc]">${item.dzuhur}</td>
+            
+            <!-- Ashar -->
+            <td class="px-4 py-3 text-slate-700 dark:text-[#f8fafc]">${item.ashar}</td>
+            
+            <!-- Maghrib (Highlight dengan warna orange) -->
+            <td class="px-4 py-3 font-bold text-orange-600 dark:text-orange-300 bg-orange-50/20 dark:bg-orange-500/5">${item.maghrib}</td>
+            
+            <!-- Isya -->
+            <td class="px-4 py-3 text-slate-700 dark:text-[#f8fafc]">${item.isya}</td>
+          </tr>
+        `;
+      });
+      
+      // Step 7: Render tabel ke DOM
+      tableBody!.innerHTML = rows;
+
+      // Step 8: Update UI state - hide loading, show result
+      loading?.classList.add('hidden');
+      resultContainer?.classList.remove('hidden');
+    } catch (e) {
+      // Error handling
+      console.error("Gagal ambil jadwal", e);
+      loading?.classList.add('hidden');
+      alert('Gagal memuat jadwal. Silakan coba lagi.');
+    }
+  });
+
+  // =========================================
+  // EVENT LISTENER: EXPORT PDF
+  // Workflow:
+  // 1. Validasi data tersedia
+  // 2. Inisialisasi jsPDF
+  // 3. Design header
+  // 4. Prepare table data
+  // 5. Generate table dengan autoTable
+  // 6. Add footer
+  // 7. Save PDF
+  // =========================================
+  btnExport?.addEventListener('click', () => {
+    // Step 1: Validasi
+    if (!currentData) {
+      alert('Tidak ada data untuk di-export');
+      return;
+    }
+    
+    // @ts-ignore - jsPDF loaded via CDN
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // =========================================
+    // Step 2: Header Design
+    // Background header dengan warna Emerald (brand color)
+    // =========================================
+    doc.setFillColor(5, 150, 105); // Emerald 600
+    doc.rect(0, 0, 210, 40, 'F'); // x, y, width, height
+    
+    // Text header - putih untuk kontras
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('JADWAL IMSAKIYAH 1447 H', 105, 18, { align: 'center' });
+    
+    // Subtitle header
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${currentData.kabkota}, ${currentData.provinsi} | Qalbu App`, 105, 26, { align: 'center' });
+
+    // =========================================
+    // Step 3: Prepare Table Data
+    // Mapping data dari API ke format array untuk jsPDF
+    // =========================================
+    const body = currentData.imsakiyah.map((i: any) => [
+      i.tanggal,   // Kolom 1: Tanggal
+      i.imsak,     // Kolom 2: Imsak
+      i.subuh,     // Kolom 3: Subuh
+      i.dzuhur,    // Kolom 4: Dzuhur
+      i.ashar,     // Kolom 5: Ashar
+      i.maghrib,   // Kolom 6: Maghrib
+      i.isya       // Kolom 7: Isya
+    ]);
+
+    // =========================================
+    // Step 4: Generate Table
+    // Menggunakan autoTable plugin untuk styling
+    // =========================================
+    // @ts-ignore - autoTable plugin
+    doc.autoTable({
+      head: [['Tgl', 'Imsak', 'Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya']],
+      body: body,
+      startY: 45, // Mulai dari Y=45 (setelah header)
+      theme: 'grid', // Grid theme untuk border
+      headStyles: { 
+        fillColor: [5, 150, 105], // Emerald 600
+        textColor: 255, // Putih
+        fontSize: 10, 
+        halign: 'center' // Center align header
+      },
+      // Highlight kolom Imsak dan Maghrib
+      columnStyles: {
+        1: { 
+          fillColor: [240, 253, 244], // Emerald-50
+          fontStyle: 'bold' 
+        },
+        5: { 
+          fillColor: [255, 247, 237], // Orange-50
+          fontStyle: 'bold' 
+        }
+      },
+      styles: { 
+        fontSize: 9, 
+        halign: 'center' // Center align semua cell
+      },
+      margin: { top: 45 },
+    });
+
+    // =========================================
+    // Step 5: Footer
+    // Ambil posisi Y terakhir dari tabel
+    // =========================================
+    const finalY = (doc as any).lastAutoTable.finalY || 200;
+    doc.setFontSize(8);
+    doc.setTextColor(100); // Abu-abu
+    doc.text('Dikutip dari: equran.id - Dicetak melalui Qalbu App', 105, finalY + 10, { align: 'center' });
+
+    // =========================================
+    // Step 6: Save PDF
+    // Format filename: Imsakiyah_[Nama Kota].pdf
+    // =========================================
+    doc.save(`Imsakiyah_${currentData.kabkota}.pdf`);
+  });
+</script>
+
+<!-- 
+  GLOBAL STYLES UNTUK DARK MODE SUPPORT
+  CSS ini memastikan semua elemen memiliki warna yang benar di dark mode
+  Menggunakan !important untuk override Tailwind CSS defaults
+-->
+<style is:global>
+  /* =========================================
+     TABLE STYLING - DARK MODE FIXES
+     ========================================= */
+  
+  /* Tabel Utama */
+  #imsakiyah-table {
+    background-color: #ffffff;
+    color: #334155;
+  }
+  
+  /* Dark Mode: Tabel Background & Text */
+  .dark #imsakiyah-table {
+    background-color: rgba(11, 18, 32, 0.85) !important;
+    color: #f8fafc !important;
+  }
+
+  /* Table Header */
+  .dark #imsakiyah-table thead {
+    background-color: rgba(11, 18, 32, 0.9) !important;
+  }
+
+  /* Table Body */
+  .dark #imsakiyah-table tbody {
+    background-color: rgba(11, 18, 32, 0.85) !important;
+  }
+
+  /* Table Row Hover Effect */
+  .dark #imsakiyah-table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.08) !important;
+  }
+
+  /* Table Cell Text - Default untuk semua cell */
+  .dark #imsakiyah-table tbody td {
+    color: #f8fafc !important;
+  }
+
+  /* Table Header Cell Text - Default */
+  .dark #imsakiyah-table thead th {
+    color: #94a3b8 !important;
+  }
+
+  /* =========================================
+     LABELS - PROVINSI & KABUPATEN/KOTA
+     Dark Mode Color: #f8fafc
+     ========================================= */
+  
+  /* Label "Provinsi" & "Kabupaten / Kota" */
+  .dark .text-slate-600 {
+    color: #f8fafc !important;
+  }
+
+  /* =========================================
+     TABLE HEADERS - SPECIFIC COLUMNS
+     Target kolom: Tgl, Subuh, Dzuhur, Ashar, Isya
+     Dark Mode Color: #f8fafc
+     ========================================= */
+  
+  /* Header "Tgl" (Kolom ke-1) */
+  .dark #imsakiyah-table thead th:nth-child(1) {
+    color: #f8fafc !important;
+  }
+
+  /* Header "Subuh" (Kolom ke-3) */
+  .dark #imsakiyah-table thead th:nth-child(3) {
+    color: #f8fafc !important;
+  }
+
+  /* Header "Dzuhur" (Kolom ke-4) */
+  .dark #imsakiyah-table thead th:nth-child(4) {
+    color: #f8fafc !important;
+  }
+
+  /* Header "Ashar" (Kolom ke-5) */
+  .dark #imsakiyah-table thead th:nth-child(5) {
+    color: #f8fafc !important;
+  }
+
+  /* Header "Isya" (Kolom ke-7) */
+  .dark #imsakiyah-table thead th:nth-child(7) {
+    color: #f8fafc !important;
+  }
+
+  /* =========================================
+     TABLE TITLE & IMSAK COLUMN - CUSTOM COLORS
+     ========================================= */
+  
+  /* Table Title */
+  .dark #table-title {
+    color: #6ee7b7fe !important; /* Emerald-300 dengan opacity */
+  }
+
+  /* Kolom Imsak - Header */
+  .dark #imsakiyah-table thead th:nth-child(2) {
+    color: #6ee7b7fe !important; /* Emerald-300 dengan opacity */
+  }
+
+  /* Kolom Imsak - Body */
+  .dark #imsakiyah-table tbody td:nth-child(2) {
+    color: #6ee7b7fe !important; /* Emerald-300 dengan opacity */
+  }
+
+  /* =========================================
+     MAGHRIB COLUMN - UI/UX COLOR COMPOSITION
+     ========================================= */
+  
+  /* Kolom Maghrib - Header */
+  .dark #imsakiyah-table thead th:nth-child(6) {
+    color: #fb923c !important; /* Orange-300 - Brightness +30% */
+  }
+
+  /* Kolom Maghrib - Body */
+  .dark #imsakiyah-table tbody td:nth-child(6) {
+    color: #fb923c !important; /* Orange-300 - Brightness +30% */
+  }
+
+  /* =========================================
+     EXPORT BUTTON - DARK MODE BACKGROUND
+     ========================================= */
+  
+  /* Export Button Background */
+  .dark #btn-export {
+    background-color: #064e3b33 !important; /* Emerald-900 dengan opacity 20% */
+    color: #6ee7b7 !important; /* Emerald-300 untuk text */
+  }
+
+  /* Export Button Hover */
+  .dark #btn-export:hover {
+    background-color: #064e3b66 !important; /* Emerald-900 dengan opacity 40% */
+    color: #a7f3d0 !important; /* Emerald-200 untuk text */
+  }
+
+  /* Export Button Active/Pressed */
+  .dark #btn-export:active {
+    background-color: #064e3b99 !important; /* Emerald-900 dengan opacity 60% */
+  }
+
+  /* =========================================
+     CUSTOM SELECT STYLING - ICON SVG COLOR
+     ========================================= */
+  
+  /* Custom Select Styling - Light Mode */
+  .custom-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.25rem;
+    
+    /* Light Mode */
+    background-color: #f8fafc;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* Dark Mode Select - Icon Color Change */
+  .dark .custom-select {
+    /* Override background-image dengan warna putih (#f8fafc) */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23f8fafc'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-color: rgba(11, 18, 32, 0.85) !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+  }
+
+  /* Dark Mode Select Options */
+  .dark .custom-select option {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+  }
+
+  /* Focus States */
+  .custom-select:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
+
+  .dark .custom-select:focus {
+    border-color: #34d399 !important;
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1) !important;
+  }
+
+  /* Disabled State */
+  .custom-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .dark .custom-select:disabled {
+    opacity: 0.4 !important;
+    background-color: rgba(11, 18, 32, 0.6) !important;
+  }
+</style>

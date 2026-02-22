@@ -1,0 +1,214 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_DOA_LIST;
+const response = await fetch(apiUrl);
+const result = await response.json();
+
+// PERBAIKAN: API doa equran.id mengembalikan object { data: [...] } 
+// atau jika API tersebut mengembalikan array langsung, kita beri fallback []
+const doas = Array.isArray(result) ? result : (result.data || []);
+---
+
+<Layout title="Kumpulan Doa | Qalbu">
+    <div class="space-y-6">
+        <!-- page-header agar layout dark token berlaku (tidak diubah) -->
+        <header class="text-center space-y-2 page-header">
+            <h1 class="text-3xl font-bold text-slate-800">Doa-Doa Harian</h1>
+            <p class="text-slate-500 font-light">Kumpulan doa mustajab untuk diamalkan</p>
+        </header>
+
+        <div class="relative max-w-lg mx-auto">
+            <input 
+                type="text" 
+                id="search-doa" 
+                placeholder="Cari doa (misal: Tidur, Makan)..." 
+                class="w-full pl-12 pr-10 py-3 rounded-2xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all shadow-sm" 
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+
+            <button id="clear-doa-btn" class="hidden absolute right-3 top-3 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-0.5 transition-colors focus:outline-none" aria-label="Bersihkan pencarian">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="doa-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {doas.map((doa: any) => (
+                <!--
+                  Catatan: class `doa-card` dipertahankan; border default Tailwind tetap ada,
+                  namun kami akan mengoverride border-color via CSS global lokal di bawah
+                  untuk memastikan keterlihatan pada light & dark (menggunakan color-mix).
+                -->
+                <a href={`/doa/${doa.id}`} class="doa-card bg-white p-6 rounded-2xl border border-slate-100 hover:border-emerald-400 hover:shadow-xl hover:-translate-y-1 transition-all group" role="listitem" aria-label={`Buka doa ${doa.nama}`}>
+                    <div class="flex flex-col h-full justify-between">
+                        <div>
+                            <div class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center text-xs font-bold mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                {doa.id}
+                            </div>
+
+                            <!-- Doa name — warna dark dipaksa via CSS .dark .doa-card h3 -->
+                            <h3 class="font-bold text-slate-800 group-hover:text-emerald-700 leading-snug">{doa.nama}</h3>
+                        </div>
+
+                        <!-- Baca Doa button area (tetap ada class doa-read-btn dari perubahan sebelumnya) -->
+                        <div class="mt-4 flex items-center doa-read-btn text-xs font-medium text-emerald-600" role="button" aria-hidden="true">
+                            Baca Doa 
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </div>
+                    </div>
+                    <span class="hidden search-meta">{doa.nama} {doa.id}</span>
+                </a>
+            ))}
+        </div>
+        
+        <div id="not-found" class="hidden text-center flex flex-col items-center justify-center space-y-4 text-slate-500 font-medium">Doa tidak ditemukan.</div>
+    </div>
+</Layout>
+
+<script>
+    // Client-side search script (sama seperti sebelumnya), type-safe assertions
+    const input = document.getElementById('search-doa') as HTMLInputElement | null;
+    const clearBtn = document.getElementById('clear-doa-btn') as HTMLButtonElement | null;
+    const items = Array.from(document.querySelectorAll<HTMLElement>('.doa-card'));
+    const notFound = document.getElementById('not-found') as HTMLElement | null;
+
+    const handleSearch = (keyword: string) => {
+        let count = 0;
+        
+        items.forEach(item => {
+            const meta = (item.querySelector('.search-meta')?.textContent || "").toLowerCase();
+            if (meta.includes(keyword)) {
+                item.style.display = 'block';
+                count++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        if (notFound) notFound.style.display = count > 0 ? 'none' : 'block';
+    };
+
+    input?.addEventListener('input', (e) => {
+        const val = (e.target as HTMLInputElement).value.toLowerCase();
+        if (val.length > 0) clearBtn?.classList.remove('hidden'); else clearBtn?.classList.add('hidden');
+        handleSearch(val);
+    });
+
+    clearBtn?.addEventListener('click', () => {
+        if (!input) return;
+        input.value = '';
+        clearBtn.classList.add('hidden');
+        handleSearch('');
+        input.focus();
+    });
+</script>
+
+<style is:global>
+  /* ========== Search input styling (sama seperti index page) ========== */
+  #search-doa {
+    background-color: var(--card-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--nav-border) !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+  }
+  #search-doa::placeholder { color: var(--muted) !important; }
+
+  .dark #search-doa {
+    background-color: rgba(255,255,255,0.02) !important;
+    color: #f8fafc !important;
+    border-color: rgba(148,163,184,0.12) !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+  }
+
+  /* Force Doa Name (H3) color in dark mode to #f8fafc */
+  .dark .doa-card h3 {
+    color: #f8fafc !important;
+  }
+
+  /* ========== Border color composition for .doa-card (Light & Dark) ========== */
+
+  /*
+    PENJELASAN RINGKAS:
+    - Kita ingin border card terlihat jelas di kedua mode.
+    - Pendekatan: pakai color-mix() bila tersedia dan sediakan fallback hex hasil perhitungan
+      manual (digit-by-digit) untuk browser tanpa color-mix support.
+    - Light mode:
+        - Card bg: #ffffff (white)
+        - Accent (emerald): var(--accent) = #059669 (R=5,G=150,B=105)
+        - Kita ambil rasio accent 12% + white 88% (r = 0.12) -> border lebih bercampur putih
+          menghasilkan warna pastel hijau lembut: fallback #E1F2ED
+        - CSS: color-mix(in srgb, var(--accent) 12%, white)
+    - Dark mode:
+        - Card bg (dark): #0b1220 (R=11,G=18,B=32)
+        - Accent (dark token): var(--accent) = #34d399 (R=52,G=211,B=153)
+        - Kita ambil rasio accent 40% + dark-bg 60% (r = 0.40) -> border bercahaya namun tetap gelap
+          menghasilkan fallback #1B5F50
+        - CSS: color-mix(in srgb, var(--accent) 40%, #0b1220)
+  */
+
+  /* Default border color (light mode) - fallback & color-mix */
+  .doa-card {
+    /* Fallback manual hasil mixing: accent(12%) + white(88%) = #E1F2ED */
+    border-color: #E1F2ED !important;
+    /* Preferred: use color-mix if supported (more maintainable) */
+    border-color: color-mix(in srgb, var(--accent) 12%, white) !important;
+  }
+
+  /* Hover state - sedikit lebih kuat agar terasa interaksi */
+  .doa-card:hover {
+    /* fallback hover: lebih banyak accent (35%) + white (65%) => manual chosen hex #BFE9D7 */
+    border-color: #BFE9D7 !important;
+    border-color: color-mix(in srgb, var(--accent) 35%, white) !important;
+  }
+
+  /* Dark mode border override */
+  .dark .doa-card {
+    /* Fallback manual hasil mixing: accent(40%) + dark-bg(60%) = #1B5F50 */
+    border-color: #1B5F50 !important;
+    /* Preferred with color-mix */
+    border-color: color-mix(in srgb, var(--accent) 40%, #0b1220) !important;
+  }
+
+  /* Dark hover - sedikit terangkat */
+  .dark .doa-card:hover {
+    /* fallback hover dark: accent(60%) + dark-bg(40%) => manual chosen hex #2AAF87 */
+    border-color: #2AAF87 !important;
+    border-color: color-mix(in srgb, var(--accent) 60%, #0b1220) !important;
+  }
+
+  /*
+    PERHITUNGAN DIGIT-BY-DIGIT (ringkasan) — agar hasil fallback dapat dipercaya:
+    1) Light fallback (r = 0.12):
+       accent #059669 = (5,150,105)
+       white  #ffffff = (255,255,255)
+       R = round(0.12*5 + 0.88*255) = round(0.6 + 224.4) = 225 -> 0xE1
+       G = round(0.12*150 + 0.88*255) = round(18 + 224.4) = 242 -> 0xF2
+       B = round(0.12*105 + 0.88*255) = round(12.6 + 224.4) = 237 -> 0xED
+       => #E1F2ED
+
+    2) Dark fallback (r = 0.40):
+       accent #34d399 = (52,211,153)
+       dark bg #0b1220 = (11,18,32)
+       R = round(0.4*52 + 0.6*11) = round(20.8 + 6.6) = 27 -> 0x1B
+       G = round(0.4*211 + 0.6*18) = round(84.4 + 10.8) = 95 -> 0x5F
+       B = round(0.4*153 + 0.6*32) = round(61.2 + 19.2) = 80 -> 0x50
+       => #1B5F50
+
+    Catatan:
+    - Semua perhitungan digit-by-digit dilakukan agar tidak terjadi pembulatan yang salah.
+    - Rasio (12% dan 40%) dipilih berdasarkan estetika UI: cukup subtle di light, cukup 'tinted'
+      di dark agar border terlihat tanpa mengganggu warna isi kartu.
+  */
+
+  /* Keep other styling consistent */
+  .doa-card, #doa-container a { transition: border-color 200ms ease, transform 200ms ease; }
+
+  /* Keep doa-read-btn mix (dari perubahan sebelumnya) */
+  .doa-read-btn { color: var(--accent); }
+  .dark .doa-read-btn { color: #5cbb9e !important; color: color-mix(in srgb, var(--accent) 65%, white) !important; }
+
+</style>

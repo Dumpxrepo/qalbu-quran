@@ -1,0 +1,747 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Mengambil slug dari URL
+const { slug } = Astro.params;
+---
+
+<Layout title={`Jadwal Shalat | ${slug}`}>
+  <div class="space-y-6 animate-in fade-in duration-700">
+    
+    <!-- Header & Back Button -->
+    <div class="flex items-center gap-4">
+      <button onclick="history.back()" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+      </button>
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-white leading-tight capitalize">
+          Jadwal Shalat
+        </h1>
+        <p id="location-title" class="text-sm text-slate-500 dark:text-slate-400 capitalize">
+          Memuat lokasi...
+        </p>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="py-20 text-center">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent"></div>
+      <p class="mt-4 text-slate-500">Menyiapkan jadwal...</p>
+    </div>
+
+    <!-- Content Container -->
+    <div id="content-container" class="hidden space-y-8">
+      
+      <!-- BAGIAN 1: SHALAT BERIKUTNYA -->
+      <!-- UPDATE: Perbaikan bug peralihan ke hari berikutnya setelah Isya -->
+      <div id="next-prayer-section" class="hidden p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          
+          <div class="text-center md:text-left">
+            <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">Shalat Berikutnya</p>
+            <h2 id="next-prayer-name" class="text-4xl font-bold text-slate-800 dark:text-white">--</h2>
+            <p id="next-prayer-time" class="text-xl text-slate-600 dark:text-slate-300 mt-1">-- : --</p>
+          </div>
+          <div class="text-center md:text-right">
+             <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Waktu Lokal</p>
+             <div id="live-clock" class="text-3xl font-mono font-bold text-emerald-700 dark:text-emerald-300">00:00:00</div>
+          </div>
+          <div class="flex flex-col items-center">
+             <span class="text-xs text-slate-500 font-semibold uppercase">Hitung Mundur</span>
+             <span id="countdown-timer" class="text-3xl font-mono font-bold text-slate-800 dark:text-white mt-1">00:00:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BAGIAN 2: JADWAL SHALAT HARI INI -->
+      <!-- UPDATE: Perbaikan bug tampilan besok -->
+      <div id="today-schedule-section" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <h3 id="today-section-title" class="text-xl font-bold text-slate-800 dark:text-white">Jadwal Hari Ini</h3>
+          <span id="today-date-badge" class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium"></span>
+        </div>
+        <div id="today-cards-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+           <!-- Cards Generated via JS -->
+        </div>
+      </div>
+
+      <!-- BAGIAN 3: PILIH BULAN (TAB NAVIGATION) -->
+      <div class="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex overflow-x-auto gap-2 no-scrollbar" id="month-tabs">
+           <!-- Tabs Generated via JS -->
+        </div>
+      </div>
+
+      <!-- BAGIAN 4: TABEL JADWAL -->
+      <div class="overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl">
+        <table id="shalat-table" class="w-full text-sm text-left border-collapse">
+          <thead class="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
+            <tr>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 dark:text-[#f8fafc]">Tgl</th>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-500/5">Imsak</th>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-sky-600 dark:text-sky-400 bg-sky-50/30 dark:bg-sky-500/5">Subuh</th>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-500/5">Dzuhur</th>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-orange-600 dark:text-orange-400 bg-orange-50/30 dark:bg-orange-500/5">Ashar</th>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-rose-600 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-500/5">Maghrib</th>
+              <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-500/5">Isya</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-slate-100 dark:divide-slate-800">
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // ==========================================
+  // KONFIGURASI & INISIALISASI
+  // ==========================================
+  
+  // Mengambil data dari Session Storage (dari halaman sebelumnya)
+  const prov = sessionStorage.getItem('shalat_prov');
+  const kota = sessionStorage.getItem('shalat_kota');
+  
+  // Seleksi Elemen DOM
+  const loadingOverlay = document.getElementById('loading-overlay');
+  const contentContainer = document.getElementById('content-container');
+  const locationTitle = document.getElementById('location-title');
+  const tableBody = document.getElementById('table-body');
+  const monthTabsContainer = document.getElementById('month-tabs');
+  const nextPrayerSection = document.getElementById('next-prayer-section');
+  const todayScheduleSection = document.getElementById('today-schedule-section');
+  const todaySectionTitle = document.getElementById('today-section-title');
+  const todayCardsContainer = document.getElementById('today-cards-container');
+
+  // Konfigurasi API dan Data
+  const API_JADWAL = import.meta.env.PUBLIC_API_SHALAT_JADWAL;
+  const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  
+  // Variabel Waktu
+  const now = new Date();
+  const currentSystemMonth = now.getMonth() + 1;
+  const currentSystemYear = now.getFullYear();
+  const todayDate = now.getDate();
+  
+  // State untuk tracking
+  let currentlyDisplayedMonth = currentSystemMonth;
+  let tomorrowDataCache: any = null;
+  
+  // Interval IDs untuk cleanup
+  let countdownInterval: any = null;
+  let clockInterval: any = null;
+
+  // ==========================================
+  // FUNGSI HELPER TAMBAHAN: getTomorrowDate
+  // ==========================================
+  /**
+   * Fungsi: getTomorrowDate
+   * Tujuan: Menghitung tanggal besok dengan benar menggunakan Date object.
+   * 
+   * Logika Date Object:
+   * - new Date() membuat object dengan tanggal hari ini
+   * - setDate(getDate() + 1) menambahkan 1 hari
+   * - JavaScript otomatis menangani overflow:
+   *   * Jika hari ini 28 Feb (non-kabisat), +1 = 1 Mar
+   *   * Jika hari ini 31 Des, +1 = 1 Jan tahun depan
+   * 
+   * Keunggulan vs Logika Manual:
+   * - Tidak perlu cek akhir bulan (28/29/30/31)
+   * - Tidak perlu cek akhir tahun (Des → Jan)
+   * - Lebih readable dan less error-prone
+   * 
+   * Return: Object { date: number, month: number, year: number }
+   * 
+   * Contoh:
+   * - Input: 22 Feb 2026 → Output: { date: 23, month: 2, year: 2026 }
+   * - Input: 28 Feb 2026 → Output: { date: 1, month: 3, year: 2026 }
+   * - Input: 31 Des 2026 → Output: { date: 1, month: 1, year: 2027 }
+   */
+  const getTomorrowDate = () => {
+    const today = new Date();
+    const besok = new Date(today);
+    besok.setDate(today.getDate() + 1); // Method setDate() otomatis handle overflow
+    
+    return {
+      date: besok.getDate(),        // 1-31
+      month: besok.getMonth() + 1,  // 1-12 (Jan=0, jadi +1)
+      year: besok.getFullYear()     // 2026, dst
+    };
+  };
+
+  // Redirect jika tidak ada data session
+  if (!prov || !kota) {
+    window.location.href = '/shalat';
+  } else {
+    locationTitle!.innerText = `${kota}, ${prov}`;
+    loadingOverlay?.classList.add('hidden');
+    contentContainer?.classList.remove('hidden');
+    renderTabsAndSetupListeners();
+    loadMonthData(currentSystemMonth);
+  }
+
+  // ==========================================
+  // FUNGSI HELPER
+  // ==========================================
+
+  /**
+   * Fungsi: getNextPrayer
+   * Tujuan: Menentukan shalat apa yang akan datang berikutnya.
+   * 
+   * Logika:
+   * 1. Jika sudah lewat Isya (isAfterIsya=true), langsung return Subuh besok.
+   * 2. Jika belum, loop setiap waktu shalat, konversi ke total detik.
+   * 3. Hitung selisih (waktu shalat - waktu sekarang).
+   * 4. Cari selisih positif terkecil → itulah shalat berikutnya.
+   * 
+   * Parameter:
+   * - jadwalHariIni: Object berisi waktu shalat hari ini {imsak, subuh, dzuhur, ashar, maghrib, isya}
+   * - isAfterIsya: Boolean, true jika sudah lewat waktu Isya
+   * 
+   * Return: Object { key: string, isTomorrow: boolean }
+   *   - key: nama shalat ('subuh', 'dzuhur', dll)
+   *   - isTomorrow: true jika shalat berikutnya adalah besok
+   */
+  const getNextPrayer = (jadwalHariIni: any, isAfterIsya: boolean = false) => {
+    // Jika sudah lewat Isya, langsung arahkan ke Subuh besok
+    if (isAfterIsya) {
+      return { key: 'subuh', isTomorrow: true };
+    }
+    
+    const prayerOrder = ['imsak', 'subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+    const nowTime = new Date();
+    const currentTotalSeconds = (nowTime.getHours() * 3600) + (nowTime.getMinutes() * 60) + nowTime.getSeconds();
+    
+    let nextPrayerKey = '';
+    let minDiff = Infinity;
+
+    prayerOrder.forEach(key => {
+      // Parse string "HH:MM" menjadi jam dan menit integer
+      const [pHour, pMin] = jadwalHariIni[key].split(':').map(Number);
+      const pTotalSeconds = (pHour * 3600) + (pMin * 60);
+      let diff = pTotalSeconds - currentTotalSeconds;
+      
+      // Jika selisih negatif (sudah lewat), skip kecuali Isya
+      // Untuk Isya yang sudah lewat, anggap sebagai hari berikutnya (+24 jam)
+      if (diff <= 0) {
+        if (key === 'isya') diff += (24 * 3600); 
+        else return; // Skip shalat yang sudah lewat
+      }
+
+      // Cari selisih terkecil (shalat paling dekat)
+      if (diff < minDiff) {
+        minDiff = diff;
+        nextPrayerKey = key;
+      }
+    });
+
+    // Fallback: jika semua sudah lewat, next adalah subuh besok
+    if (!nextPrayerKey) {
+      return { key: 'subuh', isTomorrow: true };
+    }
+    
+    return { key: nextPrayerKey, isTomorrow: false };
+  };
+
+  /**
+   * Fungsi: calculateSecondsToNextPrayer
+   * Tujuan: Menghitung total detik dari sekarang sampai waktu shalat target.
+   * 
+   * Algoritma:
+   * 1. Konversi waktu sekarang ke total detik (jam*3600 + menit*60 + detik)
+   * 2. Konversi waktu target ke total detik
+   * 3. Hitung selisih
+   * 4. Jika isTomorrow=true, tambahkan 24 jam (86400 detik)
+   * 
+   * Parameter:
+   * - targetTimeStr: String waktu target format "HH:MM"
+   * - isTomorrow: Boolean, true jika target adalah hari berikutnya
+   * 
+   * Return: Number (total detik)
+   */
+  const calculateSecondsToNextPrayer = (targetTimeStr: string, isTomorrow: boolean = false) => {
+    const nowTime = new Date();
+    const currentTotalSeconds = (nowTime.getHours() * 3600) + (nowTime.getMinutes() * 60) + nowTime.getSeconds();
+    
+    const [tHour, tMin] = targetTimeStr.split(':').map(Number);
+    let tTotalSeconds = (tHour * 3600) + (tMin * 60);
+    
+    let diff = tTotalSeconds - currentTotalSeconds;
+    
+    // Jika target adalah besok, tambahkan 24 jam (86400 detik)
+    if (isTomorrow) {
+      diff += (24 * 3600);
+    } else if (diff <= 0) {
+      // Jika sudah lewat dan bukan besok, tambah 24 jam
+      diff += (24 * 3600);
+    }
+    
+    return diff;
+  };
+
+  /**
+   * Fungsi: renderTabsAndSetupListeners
+   * Tujuan: Render tab bulan dan setup event listener untuk click.
+   * 
+   * Workflow:
+   * 1. Loop 12 bulan, buat button untuk masing-masing
+   * 2. Highlight bulan saat ini dengan style berbeda
+   * 3. Tambahkan event listener click untuk load data bulan tersebut
+   */
+  function renderTabsAndSetupListeners() {
+    let tabsHtml = '';
+    for (let i = 1; i <= 12; i++) {
+      const isActive = i === currentSystemMonth;
+      const activeClass = isActive 
+        ? 'bg-emerald-600 text-white shadow-md' 
+        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
+      
+      tabsHtml += `
+        <button class="month-tab-btn flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeClass}"
+          data-month="${i}">
+          ${monthNames[i-1]}
+        </button>
+      `;
+    }
+    if (monthTabsContainer) {
+      monthTabsContainer.innerHTML = tabsHtml;
+      const buttons = monthTabsContainer.querySelectorAll('.month-tab-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const m = parseInt(btn.getAttribute('data-month') || '0');
+          loadMonthData(m);
+        });
+      });
+    }
+  }
+
+  // ==========================================
+  // FUNGSI UTAMA: Load Data Bulan
+  // ==========================================
+
+  /**
+   * Fungsi: loadMonthData
+   * Tujuan: Fetch data jadwal untuk bulan tertentu dan render UI.
+   * 
+   * PERBAIKAN BUG:
+   * Sebelumnya: Fetch besok selalu ke bulan depan (nextMonth)
+   * Sekarang: Fetch besok menggunakan getTomorrowDate() untuk tanggal yang tepat
+   * 
+   * Parameter:
+   * - bulan: number (1-12)
+   */
+  async function loadMonthData(bulan: number) {
+    currentlyDisplayedMonth = bulan;
+    
+    // Update UI tab aktif (highlight bulan yang dipilih)
+    const buttons = document.querySelectorAll('.month-tab-btn');
+    buttons.forEach(btn => {
+      const m = parseInt(btn.getAttribute('data-month') || '0');
+      if (m === bulan) {
+        btn.className = 'month-tab-btn flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-emerald-600 text-white shadow-md';
+      } else {
+        btn.className = 'month-tab-btn flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
+      }
+    });
+
+    // Tampilkan loading di tabel
+    tableBody!.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-500">Memuat jadwal...</td></tr>';
+
+    // ==========================================
+    // PERBAIKAN BUG: LOGIKA FETCH JADWAL BESOK
+    // ==========================================
+    let fetchBesokPromise: Promise<any> | null = null;
+    
+    // Hanya fetch besok jika bulan yang dipilih adalah bulan ini
+    if (bulan === currentSystemMonth) {
+      
+      /*
+       * PERBAIKAN UTAMA:
+       * Gunakan getTomorrowDate() untuk dapatkan tanggal besok yang benar.
+       * 
+       * Masalah Kode Lama:
+       * - const nextMonth = bulan === 12 ? 1 : bulan + 1;
+       * - Selalu fetch ke bulan depan, sehingga 22 Feb → 22 Mar (SALAH!)
+       * 
+       * Solusi Kode Baru:
+       * - getTomorrowDate() menghitung tanggal actual besok
+       * - 22 Feb → 23 Feb (BENAR!)
+       * - 28 Feb → 1 Mar (BENAR!)
+       * - 31 Des → 1 Jan tahun depan (BENAR!)
+       */
+      const tomorrow = getTomorrowDate();
+      
+      console.log(`[DEBUG] Fetch besok: ${tomorrow.date}/${tomorrow.month}/${tomorrow.year}`);
+      
+      fetchBesokPromise = fetch(API_JADWAL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          provinsi: prov, 
+          kabkota: kota, 
+          bulan: tomorrow.month,      // ✅ BENAR: Bulan sesuai tanggal besok
+          tahun: tomorrow.year        // ✅ BENAR: Tahun sesuai tanggal besok
+        })
+      }).then(res => res.json());
+    }
+
+    try {
+      // Fetch jadwal untuk bulan yang dipilih (utama)
+      const res = await fetch(API_JADWAL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          provinsi: prov, 
+          kabkota: kota, 
+          bulan: bulan, 
+          tahun: currentSystemYear 
+        })
+      });
+      const json = await res.json();
+      const data = json.data;
+
+      // Tunggu data besok selesai di-fetch (jika ada)
+      let dataBesok = null;
+      if (fetchBesokPromise) {
+        try {
+          const besokJson = await fetchBesokPromise;
+          
+          /*
+           * PERBAIKAN: Gunakan getTomorrowDate() untuk konsistensi.
+           * 
+           * Pastikan tanggal yang dicari = tanggal yang di-fetch.
+           * Ini menghindari mismatch seperti mencari 23 di data Maret.
+           */
+          const tomorrow = getTomorrowDate();
+          
+          // Cari jadwal dengan tanggal besok yang benar
+          dataBesok = besokJson.data?.jadwal?.find((j: any) => j.tanggal === tomorrow.date);
+          
+          // Fallback: jika tidak ketemu, ambil index 0 (seharusnya jarang terjadi)
+          if (!dataBesok && besokJson.data?.jadwal?.length > 0) {
+            dataBesok = besokJson.data.jadwal[0];
+            console.warn('[WARN] Data besok tidak ditemukan, menggunakan fallback index 0');
+          }
+          
+          tomorrowDataCache = dataBesok;
+          console.log('[DEBUG] Data besok ditemukan:', dataBesok);
+        } catch (e) {
+          console.warn('Gagal mengambil data besok:', e);
+        }
+      }
+
+      // Render komponen UI
+      renderTable(data, bulan);
+      renderNextAndToday(data, bulan, dataBesok); // Pass data besok ke renderer
+
+    } catch (e) {
+      console.error(e);
+      tableBody!.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-500">Gagal memuat data.</td></tr>';
+    }
+  };
+
+  // ==========================================
+  // FUNGSI RENDER: Tabel
+  // ==========================================
+
+  /**
+   * Fungsi: renderTable
+   * Tujuan: Render tabel jadwal bulanan dengan highlight hari ini.
+   * 
+   * Logika Highlight:
+   * - Hari ini = tanggal sama AND bulan sama dengan currentSystemMonth
+   * - Jika hari ini, tambahkan styling khusus (bg-emerald, ring, badge "HARI INI")
+   */
+  function renderTable(data: any, bulan: number) {
+    let rows = '';
+    data.jadwal.forEach((item: any) => {
+      // Validasi badge hanya muncul jika tanggal DAN bulan sama dengan hari ini
+      const isToday = (
+        item.tanggal === todayDate && 
+        bulan === currentSystemMonth
+      );
+      
+      const rowClass = isToday 
+        ? 'bg-emerald-50 dark:bg-emerald-900/20 shadow-sm ring-2 ring-emerald-500/20' 
+        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50';
+      
+      const todayBadge = isToday 
+        ? `<span class="block text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded text-center font-bold mt-1">HARI INI</span>` 
+        : '';
+
+      rows += `
+        <tr class="transition-colors ${rowClass}">
+          <td class="px-4 py-3 text-center">
+            <div class="flex flex-col items-center justify-center">
+              <span class="text-lg font-bold text-slate-800 dark:text-white leading-none">${item.tanggal}</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">${item.hari}</span>
+              ${todayBadge}
+            </div>
+          </td>
+          <td class="px-4 py-3 font-bold text-emerald-600 dark:text-emerald-400">${item.imsak}</td>
+          <td class="px-4 py-3 font-bold text-sky-600 dark:text-sky-400">${item.subuh}</td>
+          <td class="px-4 py-3 font-bold text-amber-600 dark:text-amber-400">${item.dzuhur}</td>
+          <td class="px-4 py-3 font-bold text-orange-600 dark:text-orange-400">${item.ashar}</td>
+          <td class="px-4 py-3 font-bold text-rose-600 dark:text-rose-400">${item.maghrib}</td>
+          <td class="px-4 py-3 font-bold text-indigo-600 dark:text-indigo-400">${item.isya}</td>
+        </tr>
+      `;
+    });
+    tableBody!.innerHTML = rows;
+  }
+
+  // ==========================================
+  // FUNGSI RENDER: Next Prayer & Today Cards
+  // ==========================================
+
+  /**
+   * Fungsi: renderNextAndToday
+   * Tujuan: Render widget shalat berikutnya dan kartu jadwal hari ini/besok.
+   * 
+   * PERBAIKAN BUG:
+   * Sebelumnya: Setelah Isya lewat, tetap tampilkan hari ini (22 Feb)
+   * Sekarang: Setelah Isya lewat, tampilkan besok (23 Feb) dengan data yang benar
+   * 
+   * Parameter:
+   * - data: Object jadwal bulanan
+   * - bulan: Bulan yang sedang ditampilkan
+   * - dataBesok: Object jadwal besok (null jika tidak ada atau tidak relevan)
+   */
+  function renderNextAndToday(data: any, bulan: number, dataBesok: any = null) {
+    // Cleanup interval sebelumnya untuk mencegah memory leak
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (clockInterval) clearInterval(clockInterval);
+
+    // Hanya tampilkan widget jika bulan yang dipilih adalah bulan ini
+    if (bulan === currentSystemMonth) {
+      const dataHariIni = data.jadwal.find((j: any) => j.tanggal === todayDate);
+      
+      if (dataHariIni) {
+        // ==========================================
+        // CEK: Apakah sudah lewat waktu Isya?
+        // ==========================================
+        const nowTime = new Date();
+        const currentTotalSeconds = (nowTime.getHours() * 3600) + (nowTime.getMinutes() * 60) + nowTime.getSeconds();
+        
+        // Parse waktu Isya dari string "HH:MM" ke total detik
+        const [isyaHour, isyaMin] = dataHariIni.isya.split(':').map(Number);
+        const isyaSeconds = (isyaHour * 3600) + (isyaMin * 60);
+        
+        // Bandingkan: jika sekarang > Isya, maka sudah lewat
+        const isAfterIsya = currentTotalSeconds > isyaSeconds;
+        
+        // Tampilkan section widget
+        nextPrayerSection?.classList.remove('hidden');
+        todayScheduleSection?.classList.remove('hidden');
+
+        const todayDateBadgeEl = document.getElementById('today-date-badge');
+        
+        // ==========================================
+        // PERBAIKAN: Format Tanggal dan Judul Sesuai Kondisi
+        // ==========================================
+        let displayDate: Date;
+        let sectionTitle: string;
+        
+        if (isAfterIsya && dataBesok) {
+          // Jika sudah lewat Isya DAN ada data besok, tampilkan jadwal besok
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          displayDate = tomorrow;
+          sectionTitle = 'Jadwal Hari Besok';
+        } else {
+          // Tampilkan jadwal hari ini
+          displayDate = new Date();
+          sectionTitle = 'Jadwal Hari Ini';
+        }
+        
+        // Update judul section
+        if (todaySectionTitle) {
+          todaySectionTitle.innerText = sectionTitle;
+        }
+        
+        // Format tanggal: "Rabu, 18/02/2026"
+        if (todayDateBadgeEl) {
+          const dayName = displayDate.toLocaleDateString('id-ID', { weekday: 'long' });
+          const dayVal = String(displayDate.getDate()).padStart(2, '0');
+          const monthVal = String(displayDate.getMonth() + 1).padStart(2, '0');
+          const yearVal = displayDate.getFullYear();
+          
+          todayDateBadgeEl.innerText = `${dayName}, ${dayVal}/${monthVal}/${yearVal}`;
+        }
+
+        // Dapatkan next prayer dengan mempertimbangkan apakah sudah lewat Isya
+        const nextPrayerResult = getNextPrayer(dataHariIni, isAfterIsya);
+        const nextPrayerKey = nextPrayerResult.key;
+        const isNextPrayerTomorrow = nextPrayerResult.isTomorrow;
+        
+        // Mapping key ke nama shalat yang readable
+        const labels: Record<string, string> = { 
+          imsak: 'Imsak', 
+          subuh: 'Subuh', 
+          dzuhur: 'Dzuhur', 
+          ashar: 'Ashar', 
+          maghrib: 'Maghrib', 
+          isya: 'Isya' 
+        };
+        
+        const nameEl = document.getElementById('next-prayer-name');
+        const timeEl = document.getElementById('next-prayer-time');
+        
+        // Tampilkan nama shalat dengan "(Besok)" jika perlu
+        if (nameEl) {
+          if (isNextPrayerTomorrow) {
+            nameEl.innerText = `${labels[nextPrayerKey]} (Besok)`;
+          } else {
+            nameEl.innerText = labels[nextPrayerKey];
+          }
+        }
+        
+        // Tampilkan waktu yang sesuai (dari data hari ini atau data besok)
+        if (timeEl) {
+          if (isNextPrayerTomorrow && dataBesok) {
+            timeEl.innerText = dataBesok[nextPrayerKey];
+          } else {
+            timeEl.innerText = dataHariIni[nextPrayerKey];
+          }
+        }
+
+        // ==========================================
+        // Start Real-time Clock
+        // ==========================================
+        const startClock = () => {
+          const update = () => {
+            const d = new Date();
+            const el = document.getElementById('live-clock');
+            if (el) el.innerText = d.toLocaleTimeString('id-ID', { hour12: false });
+          };
+          update(); // Panggil sekali langsung
+          clockInterval = setInterval(update, 1000); // Update setiap 1 detik
+        };
+        startClock();
+
+        // ==========================================
+        // Start Countdown Timer
+        // ==========================================
+        const startCountdown = (jadwalHariIni: any, targetKey: string, isTomorrow: boolean = false, jadwalBesok: any = null) => {
+          if (countdownInterval) clearInterval(countdownInterval);
+          
+          const calculateNext = () => {
+            // Tentukan waktu target berdasarkan isTomorrow
+            let targetTimeStr: string;
+            
+            if (isTomorrow && jadwalBesok) {
+              targetTimeStr = jadwalBesok[targetKey];
+            } else {
+              targetTimeStr = jadwalHariIni[targetKey];
+            }
+            
+            const diff = calculateSecondsToNextPrayer(targetTimeStr, isTomorrow);
+            
+            // Konversi detik ke HH:MM:SS
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = Math.floor(diff % 60);
+            
+            const timerEl = document.getElementById('countdown-timer');
+            if (timerEl) timerEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            
+            // Jika countdown habis dan ini untuk besok, reload untuk update
+            if (diff <= 0 && isTomorrow) {
+              clearInterval(countdownInterval);
+              setTimeout(() => loadMonthData(currentSystemMonth), 2000);
+            }
+          };
+          
+          calculateNext(); // Panggil sekali langsung
+          countdownInterval = setInterval(calculateNext, 1000); // Update setiap 1 detik
+        };
+        
+        // Jalankan countdown dengan parameter yang sesuai
+        startCountdown(dataHariIni, nextPrayerKey, isNextPrayerTomorrow, dataBesok);
+
+        // ==========================================
+        // Render Kartu Shalat (6 kartu: Imsak - Isya)
+        // ==========================================
+        
+        // Pilih data yang ditampilkan: besok (jika isAfterIsya) atau hari ini
+        const displayData = (isAfterIsya && dataBesok) ? dataBesok : dataHariIni;
+        
+        // TypeScript interface untuk type safety
+        interface PrayerCard {
+          key: string;
+          label: string;
+          time: string;
+          color: string;
+          bg: string;
+        }
+
+        // Definisi 6 shalat dengan styling masing-masing
+        const cards: PrayerCard[] = [
+          { key: 'imsak', label: 'Imsak', time: displayData.imsak, color: 'text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { key: 'subuh', label: 'Subuh', time: displayData.subuh, color: 'text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800', bg: 'bg-sky-50 dark:bg-sky-900/20' },
+          { key: 'dzuhur', label: 'Dzuhur', time: displayData.dzuhur, color: 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+          { key: 'ashar', label: 'Ashar', time: displayData.ashar, color: 'text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+          { key: 'maghrib', label: 'Maghrib', time: displayData.maghrib, color: 'text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800', bg: 'bg-rose-50 dark:bg-rose-900/20' },
+          { key: 'isya', label: 'Isya', time: displayData.isya, color: 'text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+        ];
+
+        // Render kartu ke DOM
+        if (todayCardsContainer) {
+          todayCardsContainer.innerHTML = cards.map((c: PrayerCard) => {
+            // Highlight kartu yang merupakan shalat berikutnya
+            const isNext = (c.key === nextPrayerKey);
+            const activeClass = isNext 
+              ? 'ring-2 ring-emerald-500 scale-105 shadow-lg z-10 transform transition-all duration-300' 
+              : 'opacity-80 hover:opacity-100 hover:scale-[1.02] transition-all duration-300';
+
+            // Badge "SEGERA" untuk shalat berikutnya
+            const badgeText = isNext ? 'SEGERA' : '';
+
+            return `
+              <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${c.color} ${c.bg} shadow-sm ${activeClass}">
+                <span class="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">${c.label}</span>
+                <span class="text-xl font-bold">${c.time}</span>
+                ${isNext ? `<span class="text-[10px] mt-1 font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">${badgeText}</span>` : ''}
+              </div>
+            `;
+          }).join(''); // Join array menjadi string HTML
+        }
+
+      } else {
+        // Data hari ini tidak ditemukan, sembunyikan widget
+        nextPrayerSection?.classList.add('hidden');
+        todayScheduleSection?.classList.add('hidden');
+      }
+    } else {
+      // Bukan bulan ini, sembunyikan widget hari ini
+      nextPrayerSection?.classList.add('hidden');
+      todayScheduleSection?.classList.add('hidden');
+    }
+  }
+
+</script>
+
+<style>
+  /* Hide scrollbar untuk tab bulan */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Styling tabel */
+  #shalat-table {
+    background-color: #ffffff;
+    color: #334155;
+  }
+  .dark #shalat-table {
+    background-color: rgba(11, 18, 32, 0.85) !important;
+    color: #f8fafc !important;
+  }
+</style>

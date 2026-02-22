@@ -1,0 +1,691 @@
+---
+// src/pages/surat/[nomor].astro
+import Layout from '../../layouts/Layout.astro';
+
+const { nomor } = Astro.params;
+
+// 1. Fetch Detail Surat
+const response = await fetch(`${import.meta.env.PUBLIC_API_QURAN_DETAIL}/${nomor}`);
+const result = await response.json();
+
+if (!result || !result.data) {
+    return Astro.redirect('/404');
+}
+
+const surat = result.data;
+
+// 1b. Fetch Daftar Surat (Untuk Sidebar Desktop & Popup Mobile)
+const responseList = await fetch(import.meta.env.PUBLIC_API_QURAN_LIST);
+const resultData = await responseList.json();
+const daftarSuratSidebar = resultData.data;
+
+// 2. Fetch Tafsir (Untuk Popup)
+const tafsirRes = await fetch(`${import.meta.env.PUBLIC_API_TAFSIR_DETAIL}/${nomor}`);
+const tafsirResult = await tafsirRes.json();
+const tafsirData = tafsirResult.data.tafsir;
+
+// Data Qori
+const qoriOptions = [
+    { id: '01', name: 'Abdullah Al-Juhany' },
+    { id: '02', name: 'Abdul Muhsin Al-Qasim' },
+    { id: '03', name: 'Abdurrahman as-Sudais' },
+    { id: '04', name: 'Ibrahim Al-Dossari' },
+    { id: '05', name: 'Misyari Rasyid Al-Afasi' },
+    { id: '06', name: 'Yasser Al-Dosari' },
+];
+
+const prevSurat = parseInt(nomor!) > 1 ? parseInt(nomor!) - 1 : null;
+const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
+---
+
+<Layout title={`${surat.namaLatin} | Qalbu`}>
+    <!-- WRAPPER UTAMA: Grid Layout (1 Kolom di Mobile, 4 Kolom di Desktop) -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-[1600px] mx-auto px-4">
+        
+        <!-- ================= SIDEBAR (DESKTOP ONLY) ================= -->
+        <aside class="hidden lg:block lg:col-span-1 h-[calc(100vh-100px)] sticky top-24 overflow-y-auto pr-2 custom-scrollbar">
+            <div class="space-y-4">
+                <h3 id="sidebar-header" class="text-lg font-bold text-slate-800 sticky top-0 bg-slate-50/90 backdrop-blur z-10 py-2 border-b border-slate-200">
+                    Daftar Surat
+                </h3>
+                
+                <!-- Search Sidebar -->
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="sidebar-search" 
+                        placeholder="Cari surat..." 
+                        class="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-slate-200 focus:border-emerald-500 outline-none bg-white"
+                    />
+                    <!-- Icon Search (Kiri) -->
+                    <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    
+                    <!-- Button Clear (X) (Kanan) -->
+                    <button id="clear-sidebar-search" class="hidden absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-0.5 transition-colors focus:outline-none">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- List Surat Sidebar -->
+                <div id="sidebar-list" class="space-y-1 pb-10">
+                    {daftarSuratSidebar.map((item) => (
+                        <a 
+                            href={`/surat/${item.nomor}`}
+                            class={`flex items-center gap-3 p-3 rounded-xl text-sm transition-all border ${item.nomor === parseInt(nomor!) ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-bold shadow-sm' : 'hover:bg-white hover:border-slate-200 text-slate-600 bg-transparent border-transparent'}`}
+                        >
+                            <span class={`w-6 h-6 flex items-center justify-center text-xs rounded-md ${item.nomor === parseInt(nomor!) ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                {item.nomor}
+                            </span>
+                            <div class="flex flex-col">
+                                <span>{item.namaLatin}</span>
+                                <span class="text-[10px] opacity-70">{item.arti}</span>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        </aside>
+
+        <!-- ================= KONTEN UTAMA ================= -->
+        <main class="col-span-1 lg:col-span-3 space-y-6">
+            
+            <!-- Sticky Header Control -->
+            <div class="sticky top-28 z-30 sticky-header-control bg-white/90 backdrop-blur-md border-b border-slate-100 py-3 px-2 rounded-2xl shadow-sm transition-all">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 px-2">
+                    <div class="text-center md:text-left">
+                        <h1 class="text-lg md:text-xl font-bold text-slate-800">{surat.namaLatin} <span class="text-slate-400 font-normal text-sm">({surat.arti})</span></h1>
+                        <p class="text-xs text-slate-500">{surat.tempatTurun} • {surat.jumlahAyat} Ayat</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full md:w-auto justify-center">
+                        <!-- Qori Selector -->
+                        <select id="qori-selector" class="text-xs md:text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-slate-700 dark:text-slate-50 cursor-pointer focus:ring-1 focus:ring-emerald-500 outline-none transition-colors">
+                            {qoriOptions.map(q => (
+                                <option value={q.id}>{q.name}</option>
+                            ))}
+                        </select>
+                        
+                        <audio id="full-player" controls class="h-8 w-full md:w-48 rounded-full shadow-sm bg-slate-50 text-xs" src={surat.audioFull['01']}>
+                            Browser Anda tidak mendukung audio.
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons (Prev, Mobile List, Next) -->
+            <div id="nav-actions" class="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                {prevSurat ? (
+                    <a href={`/surat/${prevSurat}`} class="flex-1 flex justify-center items-center gap-2 py-3 text-sm font-medium text-slate-600 dark:text-[#f8fafc] hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-300 rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        <span>Sebelumnya</span>
+                    </a>
+                ) : (
+                    <div class="flex-1"></div> <!-- Spacer -->
+                )}
+
+                <!-- 
+                   UPDATE: Tombol "Daftar Surat" disesuaikan dengan referensi "Menu Utama".
+                   Warna Text: Emerald-600 (Light) / Emerald-300 (Dark).
+                   Warna BG: Emerald-50 (Light) / Emerald-900/20 (Dark).
+                   Border: Dihapus agar sesuai dengan link referensi.
+                -->
+                <button id="mobile-list-btn" class="flex lg:hidden mx-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300 text-sm font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-200 active:scale-95 transition-all duration-200">
+                    Daftar Surat
+                </button>
+
+                {nextSurat ? (
+                    <a href={`/surat/${nextSurat}`} class="flex-1 flex justify-center items-center gap-2 py-3 text-sm font-medium text-slate-600 dark:text-[#f8fafc] hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-300 rounded-lg transition-colors">
+                        <span>Selanjutnya</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                ) : (
+                    <div class="flex-1"></div> <!-- Spacer -->
+                )}
+            </div>
+
+            <!-- Surat Deskripsi -->
+            <div id="surat-desc-box" class="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                <p class="text-sm text-emerald-800 leading-relaxed" set:html={surat.deskripsi}></p>
+            </div>
+
+            <div class="text-center py-6">
+                <h2 class="font-arabic text-3xl text-slate-800">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</h2>
+            </div>
+
+            <!-- LIST AYAT -->
+            <div class="space-y-6">
+                {surat.ayat.map((ayat) => (
+                    <div id={`ayat-${ayat.nomorAyat}`} class="ayat-item bg-white p-4 md:p-6 rounded-2xl border border-slate-100 hover:shadow-md transition-all scroll-mt-36 group">
+                        
+                        <!-- Header Ayat: Nomor, Button Play, Teks Arab -->
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-50 pb-4">
+                            <div class="flex items-center gap-3 w-full md:w-auto overflow-hidden">
+                                <span class="w-8 h-8 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center text-sm font-bold border border-slate-200 shrink-0">
+                                    {ayat.nomorAyat}
+                                </span>
+                                
+                                <!-- BUTTON PLAY / PAUSE & PROGRESS BAR -->
+                                <div class="flex items-center gap-2">
+                                    <button 
+                                        class="play-ayat-btn w-9 h-9 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors shrink-0 shadow-sm"
+                                        data-audio-urls={JSON.stringify(ayat.audio)} 
+                                        data-nomor-ayat={ayat.nomorAyat}
+                                    >
+                                        <!-- Icon Play -->
+                                        <svg class="icon-play w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                        <!-- Icon Pause (Hidden by default) -->
+                                        <svg class="icon-pause w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                    </button>
+
+                                    <!-- Progress Bar Container -->
+                                    <div class="progress-container w-0 overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-center h-9 opacity-0">
+                                        <div class="w-32 md:w-48 flex items-center gap-2">
+                                            <div class="progress-fill h-1.5 bg-slate-200 rounded-full w-full overflow-hidden">
+                                                <div class="progress-fill-inner h-full bg-emerald-500 w-0 transition-all duration-100 linear"></div>
+                                            </div>
+                                            <span class="text-[10px] text-slate-400 font-mono w-8 text-right progress-time">0:00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button 
+                                    class="tafsir-btn text-xs font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors border border-slate-100 ml-auto md:ml-0 shrink-0"
+                                    data-tafsir={tafsirData.find((t) => t.ayat === ayat.nomorAyat)?.teks}
+                                    data-ayat={ayat.nomorAyat}
+                                >
+                                    📖 Tafsir
+                                </button>
+                            </div>
+
+                            <p class="font-arabic text-2xl md:text-3xl text-right text-slate-800 leading-loose w-full md:w-1/2" dir="rtl">
+                                {ayat.teksArab}
+                            </p>
+                        </div>
+
+                        <div class="space-y-2 text-center md:text-left">
+                            <p class="text-emerald-600 font-medium text-sm">{ayat.teksLatin}</p>
+                            <!-- Text Slate-600 - Warna akan di-override oleh Layout CSS saat Dark Mode menjadi #f8fafc -->
+                            <p class="text-slate-600 text-base leading-relaxed">{ayat.teksIndonesia}</p>
+                        </div>
+
+                        <audio class="ayat-audio-element hidden" id={`audio-el-${ayat.nomorAyat}`}></audio>
+                    </div>
+                ))}
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODAL 1: TAFSIR (CENTERED) ================= -->
+    <div id="tafsir-modal" class="fixed inset-0 z-[100] hidden flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl transform scale-95 transition-transform duration-300 relative flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100 shrink-0 bg-slate-50/50 rounded-t-2xl">
+                <h3 class="text-lg font-bold text-slate-800">Tafsir Ayat <span id="modal-ayat-num"></span></h3>
+                <button id="close-tafsir" class="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-all">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scrollbar text-slate-700 leading-8 text-justify text-base space-y-4 bg-white" id="modal-content"></div>
+            <div class="p-4 border-t border-slate-100 text-center shrink-0 rounded-b-2xl bg-slate-50/50">
+                <button id="close-tafsir-btn" class="w-full py-2 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-700 transition-colors text-sm">Tutup Tafsir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: DAFTAR SURAT (MOBILE ONLY) ================= -->
+    <div id="mobile-list-modal" class="fixed inset-0 z-[90] hidden flex flex-col">
+        <div id="mobile-modal-header" class="flex items-center justify-between p-4 border-b border-slate-200 bg-white shadow-sm z-10">
+            <h3 id="mobile-modal-header-text" class="font-bold text-lg text-slate-800">Daftar Surat</h3>
+            <button id="close-mobile-list" class="p-2 text-slate-400 hover:text-slate-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        
+        <div id="mobile-modal-search-area" class="p-4 bg-slate-50 border-b border-slate-100">
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="mobile-sidebar-search" 
+                    placeholder="Cari nama surat..." 
+                    class="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 bg-white focus:border-emerald-500 outline-none shadow-sm"
+                />
+                <!-- Button Clear Mobile -->
+                <button id="clear-mobile-search" class="hidden absolute right-3 top-3 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1 transition-colors focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- ID mobile-sidebar-list: Background akan diatur di Layout.astro -->
+        <div id="mobile-sidebar-list" class="flex-1 overflow-y-auto p-4 space-y-2">
+            {daftarSuratSidebar.map((item) => (
+                <a 
+                    href={`/surat/${item.nomor}`}
+                    class={`flex items-center gap-4 p-4 rounded-xl transition-all border ${item.nomor === parseInt(nomor!) ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-sm ring-1 ring-emerald-500' : 'bg-white border-slate-100 text-slate-600 shadow-sm hover:border-emerald-200'}`}
+                >
+                    <span class={`w-8 h-8 flex items-center justify-center text-sm rounded-lg font-bold ${item.nomor === parseInt(nomor!) ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        {item.nomor}
+                    </span>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-sm">{item.namaLatin}</span>
+                        <span class="text-xs text-slate-400">{item.arti} • {item.jumlahAyat} Ayat</span>
+                    </div>
+                </a>
+            ))}
+        </div>
+    </div>
+
+    <style>
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes slideDown {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+        
+        .animate-slide-up {
+            animation: slideUp 0.3s ease-out forwards;
+        }
+        .animate-slide-down {
+            animation: slideDown 0.3s ease-in forwards;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
+    </style>
+</Layout>
+
+<script define:vars={{ surat }}>
+    /**
+     * ========================================================================
+     * AUDIO QURAN MANAGER - INTEGRASI DENGAN BACKGROUND MUSIC
+     * ========================================================================
+     * 
+     * SISTEM KOMUNIKASI:
+     * - Menggunakan CustomEvent untuk mengirim sinyal ke Layout.astro (parent)
+     * - Event 'quran-audio-started': Memberitahu parent untuk pause background music
+     * - Event 'quran-audio-stopped': Memberitahu parent untuk resume background music
+     * 
+     * KONSEP PENTING:
+     * - dispatchEvent: Mengirim event ke window (global scope)
+     * - Layout.astro mendengarkan event ini via addEventListener
+     * - Ini adalah implementasi Observer Pattern sederhana
+     */
+
+    // --- VARIABLES ---
+    const qoriSelector = document.getElementById('qori-selector');
+    const fullPlayer = document.getElementById('full-player');
+    const playBtns = document.querySelectorAll('.play-ayat-btn');
+    const tafsirBtns = document.querySelectorAll('.tafsir-btn');
+    const tafsirModal = document.getElementById('tafsir-modal');
+    const closeTafsirBtns = [document.getElementById('close-tafsir'), document.getElementById('close-tafsir-btn')];
+    
+    // Mobile List Variables
+    const mobileListBtn = document.getElementById('mobile-list-btn');
+    const mobileListModal = document.getElementById('mobile-list-modal');
+    const closeMobileList = document.getElementById('close-mobile-list');
+    
+    // Search & Clear Variables
+    const sidebarSearch = document.getElementById('sidebar-search');
+    const clearSidebarSearch = document.getElementById('clear-sidebar-search');
+    const sidebarList = document.getElementById('sidebar-list');
+    
+    const mobileSidebarSearch = document.getElementById('mobile-sidebar-search');
+    const clearMobileSearch = document.getElementById('clear-mobile-search');
+    const mobileSidebarList = document.getElementById('mobile-sidebar-list');
+
+    // State Audio
+    let currentAudioElement = null; 
+    let currentQoriId = '01';
+    let currentBtn = null;
+    let updateTimer = null;
+
+    // --- PERBAIKAN BUG: INISIALISASI AWAL FULL PLAYER ---
+    if (fullPlayer && surat && surat.audioFull) {
+        fullPlayer.src = surat.audioFull[currentQoriId];
+    }
+
+    /**
+     * FUNGSI: notifyParentAudioStarted(source)
+     * ALGORITMA: Mengirim sinyal ke Layout.astro untuk pause background music
+     * PARAMETER: source - 'full' untuk full surat, 'ayat' untuk per ayat
+     * 
+     * CustomEvent:
+     * - type: 'quran-audio-started' (nama event)
+     * - detail: { source: string } (data tambahan)
+     * - bubbles: true (bisa bubble up DOM tree)
+     * - composed: true (bisa lewat shadow DOM boundary)
+     */
+    const notifyParentAudioStarted = (source) => {
+        const event = new CustomEvent('quran-audio-started', {
+            detail: { 
+                source: source,  // 'full' atau 'ayat'
+                suratNumber: surat.nomor,
+                suratName: surat.namaLatin
+            },
+            bubbles: true,
+            composed: true
+        });
+        window.dispatchEvent(event);
+        console.log(`[Surat Audio] Dispatched 'quran-audio-started' from ${source}`);
+    };
+
+    /**
+     * FUNGSI: notifyParentAudioStopped(source)
+     * ALGORITMA: Mengirim sinyal ke Layout.astro untuk resume background music
+     * PARAMETER: source - 'full' untuk full surat, 'ayat' untuk per ayat
+     */
+    const notifyParentAudioStopped = (source) => {
+        const event = new CustomEvent('quran-audio-stopped', {
+            detail: { 
+                source: source,
+                suratNumber: surat.nomor,
+                suratName: surat.namaLatin
+            },
+            bubbles: true,
+            composed: true
+        });
+        window.dispatchEvent(event);
+        console.log(`[Surat Audio] Dispatched 'quran-audio-stopped' from ${source}`);
+    };
+
+    // --- 1. LOGIKA GANTI QORI ---
+    qoriSelector.addEventListener('change', (e) => {
+        currentQoriId = e.target.value;
+        const newFullSrc = surat.audioFull[currentQoriId];
+        
+        if(newFullSrc) {
+            const wasPlaying = !fullPlayer.paused;
+            fullPlayer.src = newFullSrc;
+            if(wasPlaying) {
+                fullPlayer.play();
+                // Jika ganti qori saat sedang play, tetap kirim event started
+                notifyParentAudioStarted('full');
+            }
+        }
+        
+        if(currentAudioElement) {
+            pauseAudio(currentBtn);
+        }
+    });
+
+    // --- FUNGSI: Format Time (Detik -> MM:SS) ---
+    function formatTime(seconds) {
+        if(isNaN(seconds)) return "0:00";
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // --- FUNGSI: Play Audio ---
+    /**
+     * ALGORITMA PLAY AUDIO:
+     * 1. Jika ada audio lain yang sedang play, pause dulu
+     * 2. Set source audio sesuai qori yang dipilih
+     * 3. Update UI (icon, progress bar, highlight)
+     * 4. Play audio
+     * 5. KIRIM EVENT: notifyParentAudioStarted() untuk pause background music
+     */
+    function playAudio(btn, audioEl) {
+        // 1. Pause audio lain jika ada
+        if (currentAudioElement && currentAudioElement !== audioEl) {
+            pauseAudio(currentBtn);
+        }
+        
+        // Pause full player jika sedang play
+        if (!fullPlayer.paused) {
+            fullPlayer.pause();
+            // Tidak perlu notify stopped karena kita langsung ganti ke ayat
+        }
+
+        // 2. Set source
+        const urls = JSON.parse(btn.getAttribute('data-audio-urls'));
+        audioEl.src = urls[currentQoriId];
+
+        // 3. Update UI
+        btn.querySelector('.icon-play').classList.add('hidden');
+        btn.querySelector('.icon-pause').classList.remove('hidden');
+
+        const progressContainer = btn.parentElement.querySelector('.progress-container');
+        progressContainer.classList.remove('w-0', 'opacity-0');
+        progressContainer.classList.add('w-full', 'opacity-100', 'ml-2');
+
+        // 4. Play
+        audioEl.play();
+        currentAudioElement = audioEl;
+        currentBtn = btn;
+
+        // Highlight ayat container
+        document.querySelectorAll('.ayat-item').forEach(el => el.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-50'));
+        const ayatNum = btn.getAttribute('data-nomor-ayat');
+        const container = document.getElementById(`ayat-${ayatNum}`);
+        container.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-50');
+
+        // 5. Start progress loop
+        startProgressLoop(audioEl, progressContainer);
+
+        // 6. NOTIFIKASI KE PARENT: Quran audio started
+        notifyParentAudioStarted('ayat');
+    }
+
+    // --- FUNGSI: Pause Audio ---
+    /**
+     * ALGORITMA PAUSE AUDIO:
+     * 1. Pause audio element
+     * 2. Update UI (icon, progress bar)
+     * 3. Clear timer
+     * 4. KIRIM EVENT: notifyParentAudioStopped() untuk resume background music
+     */
+    function pauseAudio(btn) {
+        if(!btn) return;
+
+        const audioId = `audio-el-${btn.getAttribute('data-nomor-ayat')}`;
+        const audioEl = document.getElementById(audioId);
+        
+        audioEl.pause();
+
+        // Update UI
+        btn.querySelector('.icon-pause').classList.add('hidden');
+        btn.querySelector('.icon-play').classList.remove('hidden');
+
+        const progressContainer = btn.parentElement.querySelector('.progress-container');
+        progressContainer.classList.remove('w-full', 'opacity-100', 'ml-2');
+        progressContainer.classList.add('w-0', 'opacity-0');
+
+        const innerBar = progressContainer.querySelector('.progress-fill-inner');
+        innerBar.style.width = '0%';
+        
+        clearInterval(updateTimer);
+
+        // NOTIFIKASI KE PARENT: Quran audio stopped
+        // Tapi hanya jika ini adalah audio yang sedang aktif
+        if (currentAudioElement === audioEl) {
+            notifyParentAudioStopped('ayat');
+        }
+    }
+
+    // --- FUNGSI: Loop Update Progress Bar ---
+    function startProgressLoop(audioEl, container) {
+        const innerBar = container.querySelector('.progress-fill-inner');
+        const timeText = container.querySelector('.progress-time');
+
+        if(updateTimer) clearInterval(updateTimer);
+
+        updateTimer = setInterval(() => {
+            if (audioEl.paused) return;
+            
+            const percent = (audioEl.currentTime / audioEl.duration) * 100;
+            innerBar.style.width = `${percent}%`;
+            timeText.textContent = formatTime(audioEl.currentTime);
+        }, 100);
+    }
+
+    // --- 2. LOGIKA BUTTON CLICK (PER AYAT) ---
+    playBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const audioId = `audio-el-${btn.getAttribute('data-nomor-ayat')}`;
+            const audioEl = document.getElementById(audioId);
+            
+            if (currentAudioElement === audioEl && !audioEl.paused) {
+                // Sedang play -> pause
+                pauseAudio(btn);
+            } else {
+                // Sedang pause atau audio lain -> play
+                playAudio(btn, audioEl);
+            }
+        });
+    });
+
+    // --- 3. LOGIKA AUTO NEXT (PLAYLIST) ---
+    /**
+     * ALGORITMA AUTO NEXT:
+     * Ketika audio ayat selesai, otomatis play ayat berikutnya
+     * Jika tidak ada ayat berikutnya, kirim event stopped ke parent
+     */
+    document.querySelectorAll('audio.ayat-audio-element').forEach(audio => {
+        audio.onended = () => {
+            const currentId = parseInt(audio.id.split('-')[2]);
+            const nextId = currentId + 1;
+            const nextBtn = document.querySelector(`.play-ayat-btn[data-nomor-ayat="${nextId}"]`);
+            
+            if(currentBtn) {
+                // Reset UI current button
+                pauseAudio(currentBtn);
+            }
+
+            if (nextBtn) {
+                // Ada ayat berikutnya -> scroll dan play
+                document.getElementById(`ayat-${nextId}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => nextBtn.click(), 500);
+                // Note: Tidak perlu kirim stopped karena nextBtn.click() akan kirim started
+            } else {
+                // Tidak ada ayat berikutnya (surat selesai)
+                notifyParentAudioStopped('ayat');
+                currentAudioElement = null;
+                currentBtn = null;
+            }
+        };
+    });
+
+    // --- 4. LOGIKA FULL PLAYER (AUDIO FULL SURAT) ---
+    /**
+     * FULL PLAYER EVENT LISTENERS
+     * Mendengarkan event play, pause, dan ended pada full audio player
+     */
+    
+    // Ketika full player mulai diputar
+    fullPlayer?.addEventListener('play', () => {
+        // Pause ayat audio jika sedang play
+        if (currentAudioElement && !currentAudioElement.paused) {
+            pauseAudio(currentBtn);
+        }
+        
+        // Notify parent
+        notifyParentAudioStarted('full');
+    });
+
+    // Ketika full player di-pause
+    fullPlayer?.addEventListener('pause', () => {
+        // Hanya notify jika memang sedang play (bukan karena ended)
+        if (fullPlayer.currentTime < fullPlayer.duration - 0.5) {
+            notifyParentAudioStopped('full');
+        }
+    });
+
+    // Ketika full player selesai
+    fullPlayer?.addEventListener('ended', () => {
+        notifyParentAudioStopped('full');
+    });
+
+    // --- 5. MODAL TAFSIR (EXISTING) ---
+    const openTafsir = () => {
+        tafsirModal.classList.remove('hidden');
+        setTimeout(() => {
+            tafsirModal.classList.remove('opacity-0');
+            tafsirModal.querySelector('div').classList.remove('scale-95');
+            tafsirModal.querySelector('div').classList.add('scale-100');
+        }, 10);
+        document.body.style.overflow = 'hidden';
+    };
+
+    const closeTafsir = () => {
+        tafsirModal.classList.add('opacity-0');
+        tafsirModal.querySelector('div').classList.remove('scale-100');
+        tafsirModal.querySelector('div').classList.add('scale-95');
+        setTimeout(() => {
+            tafsirModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }, 300);
+    };
+
+    tafsirBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const teks = btn.getAttribute('data-tafsir');
+            const ayatNum = btn.getAttribute('data-ayat');
+            document.getElementById('modal-ayat-num').textContent = ayatNum;
+            const formattedText = teks.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br />');
+            document.getElementById('modal-content').innerHTML = `<p>${formattedText}</p>`;
+            openTafsir();
+        });
+    });
+
+    closeTafsirBtns.forEach(b => b?.addEventListener('click', closeTafsir));
+    tafsirModal.addEventListener('click', (e) => { if(e.target === tafsirModal) closeTafsir(); });
+
+    // --- 6. MOBILE SIDEBAR LOGIC (EXISTING) ---
+    mobileListBtn?.addEventListener('click', () => {
+        mobileListModal.classList.remove('hidden');
+        mobileListModal.classList.add('animate-slide-up');
+        mobileListModal.classList.remove('animate-slide-down');
+    });
+
+    closeMobileList?.addEventListener('click', () => {
+        mobileListModal.classList.add('animate-slide-down');
+        setTimeout(() => {
+            mobileListModal.classList.add('hidden');
+            mobileListModal.classList.remove('animate-slide-down');
+        }, 300);
+    });
+
+    // --- 7. SEARCH & CLEAR BUTTON LOGIC (EXISTING) ---
+    const handleSearch = (input, listContainer) => {
+        const keyword = input.value.toLowerCase();
+        const items = listContainer.getElementsByTagName('a');
+        
+        for (let i = 0; i < items.length; i++) {
+            const text = items[i].textContent.toLowerCase();
+            items[i].style.display = text.includes(keyword) ? "flex" : "none";
+        }
+    };
+
+    // Setup Logic untuk Sidebar Desktop
+    sidebarSearch?.addEventListener('input', (e) => {
+        const val = e.target.value;
+        clearSidebarSearch.classList.toggle('hidden', val.length === 0);
+        handleSearch(e.target, sidebarList);
+    });
+
+    clearSidebarSearch?.addEventListener('click', () => {
+        sidebarSearch.value = '';
+        clearSidebarSearch.classList.add('hidden');
+        handleSearch(sidebarSearch, sidebarList);
+        sidebarSearch.focus();
+    });
+
+    // Setup Logic untuk Mobile
+    mobileSidebarSearch?.addEventListener('input', (e) => {
+        const val = e.target.value;
+        clearMobileSearch.classList.toggle('hidden', val.length === 0);
+        handleSearch(e.target, mobileSidebarList);
+    });
+
+    clearMobileSearch?.addEventListener('click', () => {
+        mobileSidebarSearch.value = '';
+        clearMobileSearch.classList.add('hidden');
+        handleSearch(mobileSidebarSearch, mobileSidebarList);
+        mobileSidebarSearch.focus();
+    });
+
+</script>

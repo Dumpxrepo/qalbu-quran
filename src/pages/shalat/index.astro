@@ -1,0 +1,723 @@
+---
+// src/pages/shalat/index.astro
+// Halaman jadwal shalat bulanan dengan fitur pencarian lokasi.
+// VERSI TERBARU: Perbaikan bug peralihan ke hari berikutnya setelah Isya.
+// UPDATE: Logika tanggal besow kini benar - tidak lagi loncat ke bulan depan.
+
+import Layout from '../../layouts/Layout.astro';
+
+// ============================================
+// SERVER-SIDE DATA FETCHING
+// ============================================
+// Mengambil daftar provinsi saat halaman di-render di server.
+// Menggunakan environment variables untuk keamanan dan fleksibilitas.
+const resProv = await fetch(import.meta.env.PUBLIC_API_SHALAT_PROVINSI);
+const jsonProv = await resProv.json();
+const daftarProvinsi = jsonProv.data || [];
+
+// Mendapatkan bulan dan tahun saat ini untuk default value dropdown
+const dateNow = new Date();
+const currentMonth = dateNow.getMonth() + 1; // JavaScript: Januari = 0, jadi +1
+const currentYear = dateNow.getFullYear();
+---
+
+<Layout title="Jadwal Shalat | Qalbu">
+  <div class="space-y-8 animate-in fade-in duration-700">
+    <header class="text-center space-y-2 page-header">
+      <h1 class="text-3xl font-bold tracking-tight">Jadwal Shalat</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-light">Atur lokasi dan lihat jadwal shalat wilayah Anda</p>
+    </header>
+
+    <!-- Container Form Pencarian -->
+    <div id="shalat-container" class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+      <!-- GRID SYSTEM: Mobile Stack (1 kolom), Desktop Side-by-side (3 kolom) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Dropdown Provinsi -->
+        <div class="space-y-2">
+          <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Provinsi</label>
+          <select id="select-provinsi" class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+            <option value="">Pilih Provinsi...</option>
+            {daftarProvinsi.map((prov: string) => (
+              <option value={prov}>{prov}</option>
+            ))}
+          </select>
+        </div>
+
+        <!-- Dropdown Kabupaten/Kota -->
+        <div class="space-y-2">
+          <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Kabupaten / Kota</label>
+          <select id="select-kabkota" disabled class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            <option value="">Pilih Kota...</option>
+          </select>
+        </div>
+
+        <!-- Dropdown Bulan -->
+        <div class="space-y-2">
+          <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Bulan</label>
+          <select id="select-bulan" class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+            {Array.from({ length: 12 }, (_, i) => {
+              const monthNum = i + 1;
+              const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+              return (
+                <option value={monthNum} selected={monthNum === currentMonth}>
+                  {monthNames[i]} {currentYear}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="hidden text-center py-10">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent"></div>
+      <p class="mt-2 text-slate-500">Mengambil data jadwal...</p>
+    </div>
+
+    <!-- Area Hasil -->
+    <div id="result-area" class="hidden space-y-6">
+      
+      <!-- BAGIAN 1: SHALAT BERIKUTNYA -->
+      <div id="next-prayer-section" class="hidden p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          
+          <div class="text-center md:text-left">
+            <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">Shalat Berikutnya</p>
+            <h2 id="next-prayer-name" class="text-4xl font-bold text-slate-800 dark:text-white">--</h2>
+            <p id="next-prayer-time" class="text-xl text-slate-600 dark:text-slate-300 mt-1">-- : --</p>
+          </div>
+          
+          <div class="text-center md:text-right">
+             <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Waktu Lokal Anda</p>
+             <div id="live-clock" class="text-3xl font-mono font-bold text-emerald-700 dark:text-emerald-300">00:00:00</div>
+             <p id="user-timezone" class="text-xs text-slate-400 mt-1">Local Time</p>
+          </div>
+
+          <!-- Countdown -->
+          <div class="flex flex-col items-center">
+             <span class="text-xs text-slate-500 font-semibold uppercase">Hitung Mundur</span>
+             <span id="countdown-timer" class="text-3xl font-mono font-bold text-slate-800 dark:text-white mt-1">00:00:00</span>
+          </div>
+        </div>
+        <!-- Decorative Backgrounds -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-200 dark:bg-emerald-800 rounded-full opacity-20 blur-2xl"></div>
+        <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-teal-200 dark:bg-teal-800 rounded-full opacity-20 blur-2xl"></div>
+      </div>
+
+      <!-- BAGIAN 2: JADWAL SHALAT HARI INI (TODAY CARDS) -->
+      <div id="today-schedule-section" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <h3 id="today-section-title" class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
+            Jadwal Shalat Hari Ini
+          </h3>
+          <span id="today-date-badge" class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium"></span>
+        </div>
+
+        <!-- Grid Kartu Shalat Hari Ini -->
+        <div id="today-cards-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <!-- Cards akan di-generate via JS -->
+        </div>
+      </div>
+
+      <!-- BAGIAN 3: TABEL JADWAL BULANAN & NAVIGASI HALAMAN KHUSUS -->
+      <div class="space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 id="table-title" class="text-lg font-bold text-slate-800 dark:text-white">Jadwal Bulanan</h3>
+          
+          <button id="btn-special-page" class="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95 text-sm font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Lihat Halaman Khusus
+          </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl">
+          <table id="shalat-table" class="w-full text-sm text-left border-collapse">
+            <thead class="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
+              <tr>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 dark:text-[#f8fafc]">Tgl</th>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-500/5">Imsak</th>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-sky-600 dark:text-sky-400 bg-sky-50/30 dark:bg-sky-500/5">Subuh</th>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-500/5">Dzuhur</th>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-orange-600 dark:text-orange-400 bg-orange-50/30 dark:bg-orange-500/5">Ashar</th>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-rose-600 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-500/5">Maghrib</th>
+                <th class="px-4 py-4 font-bold border-b border-slate-100 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-500/5">Isya</th>
+              </tr>
+            </thead>
+            <tbody id="table-body" class="divide-y divide-slate-100 dark:divide-slate-800">
+              <!-- Rows generated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // ==========================================
+  // KONFIGURASI & INISIALISASI
+  // ==========================================
+  
+  // Seleksi Elemen DOM
+  const selectProv = document.getElementById('select-provinsi') as HTMLSelectElement;
+  const selectKota = document.getElementById('select-kabkota') as HTMLSelectElement;
+  const selectBulan = document.getElementById('select-bulan') as HTMLSelectElement;
+  const loading = document.getElementById('loading');
+  const resultArea = document.getElementById('result-area');
+  const tableBody = document.getElementById('table-body');
+  const tableTitle = document.getElementById('table-title');
+  const btnSpecialPage = document.getElementById('btn-special-page');
+  
+  // Elemen Widget Shalat Berikutnya
+  const nextPrayerSection = document.getElementById('next-prayer-section');
+  const nextPrayerName = document.getElementById('next-prayer-name');
+  const nextPrayerTime = document.getElementById('next-prayer-time');
+  const countdownTimer = document.getElementById('countdown-timer');
+  const liveClock = document.getElementById('live-clock');
+  const userTimezone = document.getElementById('user-timezone');
+
+  // Elemen Kartu Hari Ini
+  const todayScheduleSection = document.getElementById('today-schedule-section');
+  const todaySectionTitle = document.getElementById('today-section-title');
+  const todayDateBadge = document.getElementById('today-date-badge');
+  const todayCardsContainer = document.getElementById('today-cards-container');
+
+  // State & Config
+  const API_KABKOTA = import.meta.env.PUBLIC_API_SHALAT_KABKOTA;
+  const API_JADWAL = import.meta.env.PUBLIC_API_SHALAT_JADWAL;
+  let currentData: any = null;
+  let tomorrowDataCache: any = null; // Cache untuk data besok
+  let countdownInterval: any = null;
+  let clockInterval: any = null;
+
+  // Variabel Waktu
+  const now = new Date();
+  const currentSystemMonth = now.getMonth() + 1;
+  const currentSystemYear = now.getFullYear();
+  const todayDate = now.getDate();
+
+  // Deteksi Timezone User
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (userTimezone) userTimezone.innerText = timeZone;
+
+  // ==========================================
+  // FUNGSI HELPER
+  // ==========================================
+
+  /**
+   * Fungsi: getNextPrayer
+   * Tujuan: Menentukan shalat apa yang akan datang berikutnya.
+   * Logika: Bandingkan waktu sekarang dengan setiap waktu shalat.
+   * Jika sudah lewat Isya, return Subuh besok.
+   */
+  const getNextPrayer = (jadwalHariIni: any, isAfterIsya: boolean = false) => {
+    const prayerOrder = ['imsak', 'subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+    const nowTime = new Date();
+    const currentTotalSeconds = (nowTime.getHours() * 3600) + (nowTime.getMinutes() * 60) + nowTime.getSeconds();
+    
+    // Jika sudah lewat Isya, langsung arahkan ke Subuh besok
+    if (isAfterIsya) {
+      return { key: 'subuh', isTomorrow: true };
+    }
+    
+    let nextPrayerKey = '';
+    let minDiff = Infinity;
+
+    prayerOrder.forEach(key => {
+      const [pHour, pMin] = jadwalHariIni[key].split(':').map(Number);
+      const pTotalSeconds = (pHour * 3600) + (pMin * 60);
+      
+      let diff = pTotalSeconds - currentTotalSeconds;
+      
+      if (diff <= 0) {
+        if (key === 'isya') diff += (24 * 3600); 
+        else return;
+      }
+
+      if (diff < minDiff) {
+        minDiff = diff;
+        nextPrayerKey = key;
+      }
+    });
+
+    if (!nextPrayerKey) {
+      return { key: 'subuh', isTomorrow: true };
+    }
+    
+    return { key: nextPrayerKey, isTomorrow: false };
+  };
+
+  /**
+   * Fungsi: calculateSecondsToNextPrayer
+   * Tujuan: Menghitung total detik dari sekarang sampai waktu shalat target.
+   */
+  const calculateSecondsToNextPrayer = (targetTimeStr: string, isTomorrow: boolean = false) => {
+    const nowTime = new Date();
+    const currentTotalSeconds = (nowTime.getHours() * 3600) + (nowTime.getMinutes() * 60) + nowTime.getSeconds();
+    
+    const [tHour, tMin] = targetTimeStr.split(':').map(Number);
+    let tTotalSeconds = (tHour * 3600) + (tMin * 60);
+    
+    let diff = tTotalSeconds - currentTotalSeconds;
+    
+    if (isTomorrow) {
+      diff += (24 * 3600);
+    } else if (diff <= 0) {
+      diff += (24 * 3600);
+    }
+    
+    return diff;
+  };
+
+  /**
+   * Fungsi: startClock
+   * Tujuan: Menjalankan jam real-time di UI.
+   */
+  const startClock = () => {
+    const update = () => {
+      const d = new Date();
+      if(liveClock) liveClock.innerText = d.toLocaleTimeString('id-ID', { hour12: false });
+    };
+    update();
+    clockInterval = setInterval(update, 1000);
+  };
+
+  /**
+   * Fungsi: startCountdown
+   * Tujuan: Menghitung mundur menuju waktu shalat berikutnya.
+   */
+  const startCountdown = (jadwalHariIni: any, targetKey: string, isTomorrow: boolean = false, jadwalBesok: any = null) => {
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    const calculateNext = () => {
+      let targetTimeStr: string;
+      
+      if (isTomorrow && jadwalBesok) {
+        targetTimeStr = jadwalBesok[targetKey];
+      } else {
+        targetTimeStr = jadwalHariIni[targetKey];
+      }
+      
+      const diff = calculateSecondsToNextPrayer(targetTimeStr, isTomorrow);
+
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = Math.floor(diff % 60);
+      
+      if(countdownTimer) countdownTimer.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      
+      if (diff <= 0 && isTomorrow) {
+        clearInterval(countdownInterval);
+        setTimeout(() => renderData(), 2000);
+      }
+    };
+    
+    calculateNext();
+    countdownInterval = setInterval(calculateNext, 1000);
+  };
+
+  // ==========================================
+  // EVENT LISTENERS
+  // ==========================================
+
+  // Event: Saat Provinsi diubah
+  selectProv?.addEventListener('change', async () => {
+    const prov = selectProv.value;
+    if (!prov) {
+      selectKota.disabled = true;
+      selectKota.innerHTML = '<option value="">Pilih Kota...</option>';
+      return;
+    }
+    
+    selectKota.disabled = true;
+    selectKota.innerHTML = '<option value="">Memuat...</option>';
+    
+    try {
+      const res = await fetch(API_KABKOTA, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provinsi: prov })
+      });
+      const json = await res.json();
+      
+      let options = '<option value="">Pilih Kota...</option>';
+      json.data.forEach((kota: string) => options += `<option value="${kota}">${kota}</option>`);
+      selectKota.innerHTML = options;
+      selectKota.disabled = false;
+    } catch (e) {
+      console.error(e);
+      selectKota.innerHTML = '<option value="">Error loading...</option>';
+    }
+  });
+
+  /**
+   * PERBAIKAN UTAMA: Logika Fetch Data Besok
+   * 
+   * Algoritma Baru:
+   * 1. Hitung tanggal besok = todayDate + 1
+   * 2. Tentukan bulan dan tahun untuk besok:
+   *    - Buat Date object untuk hari ini
+   *    - Tambahkan 1 hari menggunakan setDate()
+   *    - Ambil bulan dan tahun dari Date object tersebut
+   * 3. Ini otomatis menangani:
+   *    - Akhir bulan (28/29/30/31 → 1)
+   *    - Akhir tahun (31 Des → 1 Jan)
+   * 
+   * Kenapa ini memperbaiki bug?
+   * - Sebelumnya: Selalu pakai bulan depan, sehingga 22 Feb → 22 Mar (SALAH)
+   * - Sekarang: 22 Feb → 23 Feb (BENAR), 28 Feb → 1 Mar (BENAR)
+   */
+  const renderData = async () => {
+    const prov = selectProv.value;
+    const kota = selectKota.value;
+    const bulan = parseInt(selectBulan.value);
+    
+    if (!prov || !kota || !bulan) return;
+
+    loading?.classList.remove('hidden');
+    resultArea?.classList.add('hidden');
+    
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (clockInterval) clearInterval(clockInterval);
+
+    const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const namaBulan = monthNames[bulan - 1];
+
+    // ==========================================
+    // PERBAIKAN BUG: LOGIKA FETCH JADWAL BESOK
+    // ==========================================
+    let fetchBesokPromise: Promise<any> | null = null;
+    
+    // Hanya fetch besok jika bulan yang dipilih adalah bulan ini
+    if (bulan === currentSystemMonth) {
+      
+      /*
+       * PERBAIKAN UTAMA:
+       * Gunakan Date object untuk menghitung besok dengan benar.
+       * 
+       * Logika Date Object:
+       * - new Date() membuat object dengan tanggal hari ini
+       * - setDate(getDate() + 1) menambahkan 1 hari
+       * - JavaScript otomatis menangani overflow:
+       *   Jika hari ini 28 Feb, +1 = 1 Mar (bukan 29 Feb)
+       * 
+       * Syntax:
+       * const besok = new Date();           // Copy tanggal hari ini
+       * besok.setDate(besok.getDate() + 1); // Tambah 1 hari
+       * 
+       * Method setDate():
+       * - Parameter: dayValue (1-31)
+       * - Jika dayValue > daysInMonth, bulan otomatis bertambah
+       * - Jika bulan Desember (11) + 1, tahun otomatis bertambah
+       */
+      const today = new Date();
+      const besok = new Date(today);
+      besok.setDate(today.getDate() + 1);
+      
+      // Ambil informasi tanggal besok dari Date object
+      const tomorrowDate = besok.getDate();        // 1-31
+      const tomorrowMonth = besok.getMonth() + 1;  // 1-12 (Jan=0, jadi +1)
+      const tomorrowYear = besok.getFullYear();    // 2026, dst
+      
+      console.log(`[DEBUG] Hari ini: ${todayDate}/${currentSystemMonth}, Besok: ${tomorrowDate}/${tomorrowMonth}`);
+      
+      // Fetch jadwal untuk tanggal besok dengan bulan & tahun yang benar
+      fetchBesokPromise = fetch(API_JADWAL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          provinsi: prov, 
+          kabkota: kota, 
+          bulan: tomorrowMonth,      // PERBAIKAN: Gunakan bulan besok (bukan selalu bulan depan)
+          tahun: tomorrowYear        // PERBAIKAN: Gunakan tahun besok (handle tahun baru)
+        })
+      }).then(res => res.json());
+    }
+
+    // Fetch Jadwal Bulanan (Hari Ini)
+    fetch(API_JADWAL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provinsi: prov, kabkota: kota, bulan: bulan, tahun: currentSystemYear })
+    })
+    .then(res => res.json())
+    .then(async json => {
+      currentData = json.data;
+      tableTitle!.innerText = `Jadwal Shalat: ${kota}, ${namaBulan} ${currentSystemYear}`;
+
+      // Setup tombol navigasi ke halaman khusus
+      btnSpecialPage!.onclick = () => {
+        sessionStorage.setItem('shalat_prov', prov);
+        sessionStorage.setItem('shalat_kota', kota);
+        const slug = `${prov.toLowerCase().replace(/ /g, '-')}-${kota.toLowerCase().replace(/ /g, '-')}`;
+        window.location.href = `/shalat/${slug}`;
+      };
+
+      // Render Tabel Bulanan
+      let rows = '';
+      currentData.jadwal.forEach((item: any) => {
+        const isToday = (item.tanggal === todayDate && bulan === currentSystemMonth);
+        
+        const rowClass = isToday ? 'bg-emerald-50 dark:bg-emerald-900/20 shadow-sm ring-2 ring-emerald-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50';
+        const todayBadge = isToday ? `<span class="block text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded text-center font-bold mt-1">HARI INI</span>` : '';
+        
+        rows += `
+          <tr class="transition-colors ${rowClass}">
+            <td class="px-4 py-3 text-center">
+              <div class="flex flex-col items-center justify-center">
+                <span class="text-lg font-bold text-slate-800 dark:text-white leading-none">${item.tanggal}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">${item.hari}</span>
+                ${todayBadge}
+              </div>
+            </td>
+            <td class="px-4 py-3 font-bold text-emerald-600 dark:text-emerald-400">${item.imsak}</td>
+            <td class="px-4 py-3 font-bold text-sky-600 dark:text-sky-400">${item.subuh}</td>
+            <td class="px-4 py-3 font-bold text-amber-600 dark:text-amber-400">${item.dzuhur}</td>
+            <td class="px-4 py-3 font-bold text-orange-600 dark:text-orange-400">${item.ashar}</td>
+            <td class="px-4 py-3 font-bold text-rose-600 dark:text-rose-400">${item.maghrib}</td>
+            <td class="px-4 py-3 font-bold text-indigo-600 dark:text-indigo-400">${item.isya}</td>
+          </tr>
+        `;
+      });
+      tableBody!.innerHTML = rows;
+
+      // ==================================================
+      // LOGIKA KHUSUS UNTUK TAMPILAN HARI INI
+      // ==================================================
+      if (bulan === currentSystemMonth) {
+        const dataHariIni = currentData.jadwal.find((j: any) => j.tanggal === todayDate);
+        
+        // Tunggu data besok selesai di-fetch
+        let dataBesok = null;
+        if (fetchBesokPromise) {
+          try {
+            const besokJson = await fetchBesokPromise;
+            
+            /*
+             * PERBAIKAN: Cari data besok berdasarkan tanggal yang benar.
+             * 
+             * Algoritma Pencarian:
+             * 1. Hitung ulang tanggal besok menggunakan Date object (konsisten dengan fetch)
+             * 2. Cari di array jadwal yang memiliki tanggal = tomorrowDate
+             * 
+             * Kenapa ini penting?
+             * - Memastikan kita mengambil data tanggal 23, bukan tanggal 22 di bulan lain
+             * - Menghindari mismatch antara tanggal yang di-fetch dan tanggal yang dicari
+             */
+            const today = new Date();
+            const besok = new Date(today);
+            besok.setDate(today.getDate() + 1);
+            const tomorrowDate = besok.getDate();
+            
+            // Cari jadwal dengan tanggal besok
+            dataBesok = besokJson.data?.jadwal?.find((j: any) => j.tanggal === tomorrowDate);
+            
+            // Fallback: jika tidak ketemu, ambil index 0 (seharusnya tidak terjadi jika API valid)
+            if (!dataBesok && besokJson.data?.jadwal?.length > 0) {
+              dataBesok = besokJson.data.jadwal[0];
+              console.warn('[WARN] Data besok tidak ditemukan, menggunakan fallback index 0');
+            }
+            
+            tomorrowDataCache = dataBesok;
+            console.log('[DEBUG] Data besok ditemukan:', dataBesok);
+          } catch (e) {
+            console.warn('Gagal mengambil data besok:', e);
+          }
+        }
+        
+        if (dataHariIni) {
+          // 1. Cek apakah sudah lewat waktu Isya
+          const nowTime = new Date();
+          const currentTotalSeconds = (nowTime.getHours() * 3600) + (nowTime.getMinutes() * 60) + nowTime.getSeconds();
+          
+          const [isyaHour, isyaMin] = dataHariIni.isya.split(':').map(Number);
+          const isyaSeconds = (isyaHour * 3600) + (isyaMin * 60);
+          
+          const isAfterIsya = currentTotalSeconds > isyaSeconds;
+          
+          // 2. Tampilkan Section Shalat Berikutnya
+          nextPrayerSection?.classList.remove('hidden');
+          
+          const nextPrayerResult = getNextPrayer(dataHariIni, isAfterIsya);
+          const nextPrayerKey = nextPrayerResult.key;
+          const isNextPrayerTomorrow = nextPrayerResult.isTomorrow;
+          
+          const labels: Record<string, string> = { 
+            imsak: 'Imsak', 
+            subuh: 'Subuh', 
+            dzuhur: 'Dzuhur', 
+            ashar: 'Ashar', 
+            maghrib: 'Maghrib', 
+            isya: 'Isya' 
+          };
+          
+          // Tampilkan nama dengan "(Besok)" jika perlu
+          if (nextPrayerName) {
+            if (isNextPrayerTomorrow) {
+              nextPrayerName.innerText = `${labels[nextPrayerKey]} (Besok)`;
+            } else {
+              nextPrayerName.innerText = labels[nextPrayerKey];
+            }
+          }
+          
+          // Tampilkan waktu yang sesuai (hari ini atau besok)
+          if (nextPrayerTime) {
+            if (isNextPrayerTomorrow && dataBesok) {
+              nextPrayerTime.innerText = dataBesok[nextPrayerKey];
+            } else {
+              nextPrayerTime.innerText = dataHariIni[nextPrayerKey];
+            }
+          }
+          
+          // Start clock dan countdown dengan data yang sesuai
+          startClock();
+          startCountdown(
+            dataHariIni, 
+            nextPrayerKey, 
+            isNextPrayerTomorrow, 
+            isNextPrayerTomorrow ? dataBesok : null
+          );
+
+          // 3. Tampilkan Section Kartu Hari Ini
+          todayScheduleSection?.classList.remove('hidden');
+
+          // --------------------------------------------------
+          // Format Tanggal dan Judul Sesuai Kondisi
+          // --------------------------------------------------
+          let displayDate: Date;
+          let dateLabel: string;
+          let sectionTitle: string;
+          
+          if (isAfterIsya && dataBesok) {
+            // Jika sudah lewat Isya, tampilkan tanggal besok
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            displayDate = tomorrow;
+            dateLabel = 'Besok';
+            sectionTitle = 'Jadwal Shalat Hari Besok';
+          } else {
+            // Tampilkan tanggal hari ini
+            displayDate = new Date();
+            dateLabel = 'Hari Ini';
+            sectionTitle = 'Jadwal Shalat Hari Ini';
+          }
+          
+          // Update judul section
+          if (todaySectionTitle) {
+            todaySectionTitle.innerHTML = `<span class="w-2 h-8 bg-emerald-500 rounded-full"></span>${sectionTitle}`;
+          }
+          
+          // Format tanggal: "Rabu, 18/02/2026"
+          const dayName = displayDate.toLocaleDateString('id-ID', { weekday: 'long' });
+          const dayVal = String(displayDate.getDate()).padStart(2, '0');
+          const monthVal = String(displayDate.getMonth() + 1).padStart(2, '0');
+          const yearVal = displayDate.getFullYear();
+          
+          const formattedDate = `${dayName}, ${dayVal}/${monthVal}/${yearVal}`;
+          
+          if (todayDateBadge) todayDateBadge.innerText = formattedDate;
+
+          // 4. Render Kartu Shalat dengan Highlight
+          const displayData = (isAfterIsya && dataBesok) ? dataBesok : dataHariIni;
+          
+          interface PrayerCard {
+            key: string;
+            label: string;
+            time: string;
+            color: string;
+            bg: string;
+          }
+
+          const cards: PrayerCard[] = [
+            { key: 'imsak', label: 'Imsak', time: displayData.imsak, color: 'text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+            { key: 'subuh', label: 'Subuh', time: displayData.subuh, color: 'text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800', bg: 'bg-sky-50 dark:bg-sky-900/20' },
+            { key: 'dzuhur', label: 'Dzuhur', time: displayData.dzuhur, color: 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+            { key: 'ashar', label: 'Ashar', time: displayData.ashar, color: 'text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+            { key: 'maghrib', label: 'Maghrib', time: displayData.maghrib, color: 'text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800', bg: 'bg-rose-50 dark:bg-rose-900/20' },
+            { key: 'isya', label: 'Isya', time: displayData.isya, color: 'text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+          ];
+
+          if (todayCardsContainer) {
+            todayCardsContainer.innerHTML = cards.map((c: PrayerCard) => {
+              const isNext = (c.key === nextPrayerKey);
+              const activeClass = isNext 
+                ? 'ring-2 ring-emerald-500 scale-105 shadow-lg z-10 transform transition-all duration-300' 
+                : 'opacity-80 hover:opacity-100 hover:scale-[1.02] transition-all duration-300';
+              
+              const badgeText = isNext ? 'SEGERA' : '';
+              
+              return `
+                <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${c.color} ${c.bg} shadow-sm ${activeClass}">
+                  <span class="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">${c.label}</span>
+                  <span class="text-xl font-bold">${c.time}</span>
+                  ${isNext ? `<span class="text-[10px] mt-1 font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">${badgeText}</span>` : ''}
+                </div>
+              `;
+            }).join('');
+          }
+        }
+      } else {
+        // Sembunyikan widget hari ini jika bulan yang dipilih bukan bulan ini
+        nextPrayerSection?.classList.add('hidden');
+        todayScheduleSection?.classList.add('hidden');
+      }
+
+      // Selesai loading
+      loading?.classList.add('hidden');
+      resultArea?.classList.remove('hidden');
+    })
+    .catch(e => {
+      console.error(e);
+      alert('Gagal memuat jadwal.');
+      loading?.classList.add('hidden');
+    });
+  };
+
+  // Event Listener untuk dropdown Kota dan Bulan
+  selectKota?.addEventListener('change', renderData);
+  selectBulan?.addEventListener('change', renderData);
+
+</script>
+
+<style is:global>
+  /* Styling untuk Select Dropdown agar konsisten dengan tema */
+  .custom-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.25rem;
+    background-color: #f8fafc;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* Styling Dark Mode untuk Select */
+  .dark .custom-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23f8fafc'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-color: rgba(11, 18, 32, 0.85) !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+  }
+  
+  /* Styling option dropdown di dalam dark mode */
+  .dark .custom-select option {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+  }
+
+  /* Styling Tabel */
+  #shalat-table {
+    background-color: #ffffff;
+    color: #334155;
+  }
+  
+  .dark #shalat-table {
+    background-color: rgba(11, 18, 32, 0.85) !important;
+    color: #f8fafc !important;
+  }
+</style>

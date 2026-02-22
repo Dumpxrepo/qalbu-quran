@@ -1,0 +1,26 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+interface Props {
+    error: unknown;
+}
+
+const { error } = Astro.props;
+// Untuk menghindari error TS pada metadata env
+const isDev = import.meta.env.DEV;
+---
+
+<Layout title="500 | Server Error">
+    <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <h1 class="text-7xl font-bold text-rose-100 mb-4">500</h1>
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">Terjadi Gangguan Server</h2>
+        <p class="text-slate-500 mb-8 max-w-sm">Maaf, kami gagal memuat data dari sumber API. Silakan coba beberapa saat lagi.</p>
+        <button onclick="window.location.reload()" class="bg-slate-800 text-white px-8 py-3 rounded-2xl font-bold hover:bg-slate-700 transition-all">Refresh Halaman</button>
+        
+        {isDev && error instanceof Error && (
+            <pre class="mt-8 p-4 bg-slate-100 rounded-lg text-xs text-rose-600 text-left max-w-xl overflow-auto">
+                {error.stack}
+            </pre>
+        )}
+    </div>
+</Layout>
