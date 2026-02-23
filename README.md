@@ -1,13 +1,13 @@
 # Qalbu - Aplikasi Al-Qur'an & Doa (Astro + Cloudflare)
 
-Website modern untuk membaca Al-Qur'an, Doa harian, dan sekarang Jadwal Imsakiyah serta Jadwal Shalat dengan fitur audio player interaktif, tafsir, dan desain responsif. Dibangun menggunakan Astro Framework dan dideploy ke Cloudflare Workers.
+Website modern untuk membaca Al-Qur'an, Doa harian, dan sekarang Jadwal Imsakiyah serta Jadwal Shalat dengan fitur audio player interaktif, tafsir, dan desain responsif. Dibangun menggunakan Astro Framework dan dideploy ke Cloudflare Pages.
 
 ## 🚀 Tech Stack
 
 * **Framework:** [Astro](https://astro.build) (Server-Side Rendering / SSR Mode)
 * **Language:** TypeScript / JavaScript
 * **Styling:** Tailwind CSS
-* **Platform:** Cloudflare Workers
+* **Platform:** Cloudflare Pages
 * **Data Source:** `equran.id` API (untuk Qur'an, Doa, Imsakiyah, Shalat) dan `myquran.com` API (untuk Asmaul Husna)
 * **Icon:** Lucide Icons
 * **Library Tambahan:** jsPDF (via CDN untuk export PDF di client-side, mudah digunakan tanpa install)
@@ -92,9 +92,9 @@ Pastikan Anda sudah menginstall **Node.js** (v18+).
     ```
     Buka browser di `http://localhost:4321`. Coba halaman `/shalat` untuk lihat fitur baru.
 
-## ☁️ Cara Deploy ke Cloudflare Workers
+## ☁️ Cara Deploy ke Cloudflare Pages
 
-Project ini sudah dikonfigurasi menggunakan adapter `@astrojs/cloudflare`. Fitur baru seperti export PDF berjalan di client-side, aman untuk Workers.
+Project ini sudah dikonfigurasi menggunakan adapter `@astrojs/cloudflare`. Fitur baru seperti export PDF berjalan di client-side, aman untuk Pages.
 
 1.  **Login ke Wrangler (Cloudflare CLI)**
     ```bash
