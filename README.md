@@ -136,7 +136,9 @@ npx wrangler login
 * `public`: Aset statis.
 
 ### Logika Audio Player (Client-Side)
-(sama seperti sebelumnya)
+Logika audio terletak di tag `<script>` pada halaman `src/pages/surat/[nomor].astro`.
+* **Event Listener `ended`:** Saat audio ayat selesai diputar, script akan mencari tombol play untuk ayat berikutnya (`nomorAyat + 1`) dan memicu event `click()` secara otomatis.
+* **State Qori:** Menggunakan variabel global `currentQoriId`. Saat dropdown berubah, semua source audio diperbarui URL-nya berdasarkan ID Qori yang dipilih.
 
 ### Logika Shalat (Baru - Mudah Dipahami)
 - **Server-Side (Astro)**: Fetch daftar provinsi saat build/load halaman (cepat, no client fetch awal).
