@@ -96,16 +96,37 @@ Pastikan Anda sudah menginstall **Node.js** (v18+).
 
 Project ini sudah dikonfigurasi menggunakan adapter `@astrojs/cloudflare`. Fitur baru seperti export PDF berjalan di client-side, aman untuk Pages.
 
-1.  **Login ke Wrangler (Cloudflare CLI)**
-    ```bash
-    npx wrangler login
-    ```
+### **Opsi 1: Deploy via Git Integration (Rekomendasi)**
 
-2.  **Build & Deploy**
-    ```bash
-    npm run deploy
-    ```
-    Wrangler akan otomatis membuild project dan mengunggahnya ke akun Cloudflare Anda.
+1.  **Push ke GitHub**
+    Pastikan kode sudah di-push ke repository GitHub.
+
+2.  **Setup di Cloudflare Dashboard**
+    * Buka [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create application** → **Pages**
+    * Klik **Connect to Git** dan pilih repository `qalbu-quran`
+    * **Build settings** akan otomatis terdeteksi:
+        * **Framework preset:** `Astro`
+        * **Build command:** `npm run build`
+        * **Build output directory:** `dist`
+    * Klik **Save and Deploy**
+
+3.  **Environment Variables**
+    Tambahkan semua variabel dari `.env` di **Settings** → **Environment variables** dashboard.
+
+### **Opsi 2: Deploy via CLI (Direct Upload)**
+
+```bash
+# Build project
+npm run build
+
+# Deploy ke Pages (memerlukan Wrangler CLI)
+npx wrangler pages deploy dist
+```
+
+**Catatan:** Untuk CLI deploy, pastikan sudah login:
+```bash
+npx wrangler login
+```
 
 ## 📚 Struktur & Penjelasan Logika
 
