@@ -1,10 +1,11 @@
 ---
 // src/pages/index.astro
 // Halaman daftar surat - menampilkan daftar surat dari API dan search client-side.
-// Kode ini menambahkan Jadwal Shalat Hari Ini berdasarkan lokasi IP user.
+// Kode ini menambahkan Jadwal Shalat Hari Ini berdasarkan lokasi user.
 // VERSI TERBARU: Menggunakan environment variables untuk semua API endpoints.
 // UPDATE: Menambahkan logika untuk menampilkan jadwal Subuh besok setelah Isya
 // UPDATE BARU: Fix styling button "Coba Lagi" agar tidak terpengaruh global CSS
+// UPDATE TERBARU: Mengganti deteksi lokasi dari ipinfo.io ke HTML5 Geolocation + ipapi.co fallback
 
 import Layout from '../layouts/Layout.astro';
 
@@ -21,7 +22,8 @@ const daftarSurat = result.data || [];
 // Export environment variables untuk digunakan di client-side script
 // Astro akan meng-inject nilai ini ke JavaScript client
 const ENV = {
-  IPINFO_URL: `${import.meta.env.PUBLIC_API_IPINFO}?token=${import.meta.env.PUBLIC_API_IPINFO_TOKEN}`,
+  // UPDATE: Menghapus IPINFO_URL karena tidak lagi digunakan
+  // Sekarang menggunakan HTML5 Geolocation API (native browser) dan ipapi.co sebagai fallback
   MQ_KOTA_CARI: import.meta.env.PUBLIC_API_MQ_KOTA_CARI,
   MQ_JADWAL: import.meta.env.PUBLIC_API_MQ_JADWAL
 };
@@ -33,23 +35,25 @@ const ENV = {
     <!-- ============================================
          BAGIAN BARU: JADWAL SHALAT HARI INI (WIDGET)
          ============================================
-         Widget ini menampilkan jadwal shalat real-time berdasarkan lokasi IP user.
+         Widget ini menampilkan jadwal shalat real-time berdasarkan lokasi user.
          
-         ALUR KERJA (WORKFLOW):
+         ALUR KERJA (WORKFLOW) - UPDATE TERBARU:
          1. Saat halaman dimuat → JavaScript client-side berjalan
-         2. Fetch ke ipinfo.io → Dapatkan kota dari IP user
-         3. Fetch ke myquran.com/kota/cari → Dapatkan ID kota
-         4. Fetch ke myquran.com/jadwal → Dapatkan jadwal lengkap (hari ini & besok)
-         5. Render UI dengan data yang didapat
-         6. Start timer untuk countdown dan live clock
-         7. Setelah Isya, otomatis switch ke jadwal besok
+         2. Coba HTML5 Geolocation API terlebih dahulu (akurasi tinggi)
+            - Jika user mengizinkan → Dapatkan latitude & longitude
+            - Reverse geocoding ke nama kota menggunakan BigDataCloud (free)
+         3. Jika Geolocation ditolak/gagal → Fallback ke ipapi.co (IP-based)
+         4. Fetch ke myquran.com/kota/cari → Dapatkan ID kota
+         5. Fetch ke myquran.com/jadwal → Dapatkan jadwal lengkap (hari ini & besok)
+         6. Render UI dengan data yang didapat
+         7. Start timer untuk countdown dan live clock
+         8. Setelah Isya, otomatis switch ke jadwal besok
          
-         KEUNGGULAN:
-         - Tidak membebani server (client-side fetching)
-         - Caching 1 jam di localStorage (hemat API calls)
-         - Auto-detect lokasi (user tidak perlu input manual)
-         - Fallback ke Jakarta jika deteksi gagal
-         - Auto-switch ke hari berikutnya setelah Isya
+         KEUNGGULAN UPDATE:
+         - HTML5 Geolocation: Akurasi tinggi (GPS-level jika tersedia)
+         - Privacy-friendly: User punya kontrol penuh (allow/deny)
+         - Fallback otomatis: Tetap bekerja meski user menolak izin lokasi
+         - Tetap gratis: Tidak perlu API key
     -->
     <div id="prayer-widget-container" class="space-y-4 animate-in fade-in slide-in-from-top-4 duration-700">
       
@@ -279,14 +283,14 @@ const ENV = {
      2. Modul Pencarian Surat (EXISTING)
      
      UPDATE PENTING PADA MODUL 1:
-     - Menambahkan fetch untuk jadwal besok
-     - Logika switch otomatis setelah Isya
-     - Perhitungan countdown untuk Subuh besok
+     - Mengganti deteksi lokasi dari ipinfo.io ke HTML5 Geolocation + ipapi.co fallback
+     - Menambahkan fungsi reverse geocoding untuk mendapatkan nama kota dari koordinat
+     - Fallback otomatis ke IP-based detection jika Geolocation ditolak
      
      CATATAN KEAMANAN:
      - Environment variables untuk PUBLIC_API_* aman di-expose ke client
-     - Token ipinfo.io adalah public token (bukan secret)
-     - Untuk production dengan token private, gunakan backend proxy
+     - Tidak ada token sensitif yang di-hardcode
+     - Untuk production dengan kebutuhan high-volume, pertimbangkan backend proxy
 -->
 
 <script define:vars={{ ENV }}>
@@ -298,18 +302,20 @@ const ENV = {
    * KONFIGURASI API DARI ENVIRONMENT VARIABLES
    * ==========================================
    * ENV di-inject oleh Astro dari server-side.
-   * Ini memungkinkan kita mengubah endpoint tanpa edit kode.
+   * UPDATE: Menghapus IPINFO_URL, sekarang menggunakan:
+   * - HTML5 Geolocation API (native, gratis, akurat)
+   * - BigDataCloud Reverse Geocoding (free tier, tanpa API key)
+   * - ipapi.co sebagai fallback (IP-based, gratis)
    * 
-   * Struktur ENV:
+   * Struktur ENV baru:
    * {
-   *   IPINFO_URL: "https://ipinfo.io?token=...",
    *   MQ_KOTA_CARI: "https://api.myquran.com/v2/sholat/kota/cari",
    *   MQ_JADWAL: "https://api.myquran.com/v2/sholat/jadwal"
    * }
    */
   
   // Destructuring untuk kemudahan akses
-  const { IPINFO_URL, MQ_KOTA_CARI, MQ_JADWAL } = ENV;
+  const { MQ_KOTA_CARI, MQ_JADWAL } = ENV;
   
   // State management untuk interval IDs (penting untuk cleanup)
   let countdownInterval = null;
@@ -324,21 +330,28 @@ const ENV = {
    * ===================================
    * Fungsi async yang mengorkestrasi seluruh proses fetching data.
    * 
-   * ALGORITMA UPDATE:
+   * ALGORITMA UPDATE TERBARU:
    * 1. Cek cache terlebih dahulu (optimasi performa)
-   * 2. Jika cache tidak ada/expired, lakukan chain fetching:
-   *    ipinfo → kota → jadwal hari ini + jadwal besok
-   * 3. Simpan data besok untuk digunakan setelah Isya
-   * 4. Render data ke UI (hari ini atau besok tergantung waktu)
-   * 5. Start timer (clock & countdown)
+   * 2. Jika cache tidak ada/expired, lakukan deteksi lokasi:
+   *    a. Coba HTML5 Geolocation API (navigator.geolocation)
+   *       - Jika sukses: dapatkan lat/long → reverse geocoding ke BigDataCloud
+   *       - Jika gagal/ditolak: lanjut ke fallback
+   *    b. Fallback: Gunakan ipapi.co untuk deteksi berbasis IP
+   * 3. Dapatkan nama kota dari hasil deteksi
+   * 4. Fetch ke myquran.com/kota/cari → Dapatkan ID kota
+   * 5. Fetch ke myquran.com/jadwal → Dapatkan jadwal hari ini + besok
+   * 6. Simpan data besok untuk switch otomatis setelah Isya
+   * 7. Render data ke UI
+   * 8. Start timer (clock & countdown)
    * 
    * PERUBAHAN BARU:
-   * - Sekarang fetch DUA jadwal: hari ini dan besok
-   * - Data besok disimpan untuk switch otomatis setelah Isya
+   * - Dua metode deteksi lokasi (Geolocation + IP fallback)
+   * - Reverse geocoding untuk mendapatkan nama kota dari koordinat
+   * - Handling permission denied dengan graceful degradation
    * 
    * ERROR HANDLING:
    * - Setiap fetch dibungkus try-catch
-   * - Fallback ke Jakarta jika deteksi gagal
+   * - Fallback ke Jakarta jika semua metode deteksi gagal
    * - UI state berubah sesuai kondisi (loading/error/success)
    */
   async function loadPrayerSchedule() {
@@ -367,26 +380,133 @@ const ENV = {
         return; // Exit early, tidak perlu fetch API
       }
       
-      // STEP 1: DETEKSI LOKASI DARI IP
-      // ================================
-      // Menggunakan service ipinfo.io untuk mendapatkan:
-      // - city: Nama kota (contoh: "Jakarta")
-      // - country: Kode negara (contoh: "ID")
-      // - timezone: Timezone lokal (contoh: "Asia/Jakarta")
+      // STEP 1: DETEKSI LOKASI USER
+      // ============================
+      // UPDATE TERBARU: Menggunakan strategi dual-detection
+      // 
+      // STRATEGI:
+      // 1. Primary: HTML5 Geolocation API (navigator.geolocation)
+      //    - Akurasi tinggi (GPS-level di mobile)
+      //    - Memerlukan izin user (privacy-friendly)
+      //    - Gratis, native browser API
+      // 
+      // 2. Fallback: ipapi.co (IP-based geolocation)
+      //    - Tidak memerlukan izin
+      //    - Cukup akurat untuk level kota
+      //    - Gratis tier: 30,000 requests/month
+      //    - Tidak perlu API key untuk basic usage
       
-      const ipInfo = await fetch(IPINFO_URL).then(r => r.json());
-      const city = ipInfo.city; // Fallback default
+      let city = null;
+      let locationSource = '';
       
-      // Update UI lokasi sementara
+      // SUB-STEP 1.1: Coba HTML5 Geolocation (Primary Method)
+      // =====================================================
+      // navigator.geolocation adalah API bawaan browser
+      // getCurrentPosition: Mendapatkan lokasi sekali (one-time)
+      // 
+      // Parameter:
+      // - success callback: Dijalankan jika lokasi berhasil didapat
+      // - error callback: Dijalankan jika gagal/ditolak
+      // - options: { enableHighAccuracy, timeout, maximumAge }
+      
+      if (navigator.geolocation) {
+        try {
+          // Membuat Promise wrapper untuk geolocation (karena API lama menggunakan callback)
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true, // Minta GPS jika tersedia (mobile)
+              timeout: 10000,           // Timeout 10 detik
+              maximumAge: 600000        // Cache 10 menit (600,000 ms)
+            });
+          });
+          
+          // Jika sukses, position object berisi:
+          // - coords.latitude: Garis lintang
+          // - coords.longitude: Garis bujur
+          // - coords.accuracy: Akurasi dalam meter
+          
+          const { latitude, longitude } = position.coords;
+          locationSource = 'GPS';
+          
+          // Update UI lokasi sementara dengan koordinat
+          const locationEl = document.getElementById('user-location');
+          if (locationEl) {
+            locationEl.textContent = `Mencari kota dari koordinat...`;
+          }
+          
+          // SUB-STEP 1.2: Reverse Geocoding (Koordinat → Nama Kota)
+          // ========================================================
+          // Menggunakan BigDataCloud Free Reverse Geocoding API
+          // Endpoint: https://api.bigdatacloud.net/data/reverse-geocode-client
+          // 
+          // Keuntungan:
+          // - Gratis, tanpa API key
+          // - Rate limit: 50,000 requests/hari
+          // - Akurasi tinggi untuk nama kota
+          // - Support Indonesia dengan baik
+          
+          const geoUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`;
+          const geoResponse = await fetch(geoUrl);
+          const geoData = await geoResponse.json();
+          
+          // Ekstrak nama kota dari response
+          // Prioritas: city > locality > principalSubdivision
+          city = geoData.city || geoData.locality || geoData.principalSubdivision;
+          
+        } catch (geoError) {
+          // Jika Geolocation gagal (user menolak, timeout, atau tidak tersedia)
+          // Lanjut ke fallback method (tidak throw error)
+          console.log('Geolocation failed or denied, trying IP-based detection...');
+        }
+      }
+      
+      // SUB-STEP 1.3: Fallback ke IP-based Detection (jika Geolocation gagal)
+      // =====================================================================
+      // Menggunakan ipapi.co - IP Geolocation API gratis
+      // 
+      // Endpoint: https://ipapi.co/json/
+      // Response: { city: "Jakarta", region: "Jakarta", country_name: "Indonesia", ... }
+      // 
+      // Keuntungan:
+      // - Tidak perlu izin user
+      // - Cukup akurat untuk level kota
+      // - Response time cepat
+      
+      if (!city) {
+        try {
+          const ipResponse = await fetch('https://ipapi.co/json/');
+          const ipData = await ipResponse.json();
+          
+          if (ipData.city) {
+            city = ipData.city;
+            locationSource = 'IP';
+          }
+        } catch (ipError) {
+          console.error('IP-based detection also failed:', ipError);
+        }
+      }
+      
+      // SUB-STEP 1.4: Fallback Final ke Jakarta
+      // ========================================
+      // Jika semua metode gagal, gunakan Jakarta sebagai default
+      // Ini memastikan aplikasi tetap berfungsi meski deteksi gagal
+      
+      if (!city) {
+        city = 'Jakarta';
+        locationSource = 'Default';
+        console.warn('All location detection methods failed, falling back to Jakarta');
+      }
+      
+      // Update UI dengan nama kota yang terdeteksi
       const locationEl = document.getElementById('user-location');
       if (locationEl) {
-        locationEl.textContent = `${city}, ${ipInfo.country || 'ID'}`;
+        locationEl.textContent = `${city} (via ${locationSource})`;
       }
       
       // STEP 2: CARI ID KOTA DI DATABASE MYQURAN
       // =========================================
       // API myquran.com memiliki database ID kota unik.
-      // Kita perlu mencocokkan nama kota dari ipinfo dengan ID di database.
+      // Kita perlu mencocokkan nama kota dari deteksi dengan ID di database.
       // 
       // Endpoint: GET /sholat/kota/cari/{nama_kota}
       // Response: { status: true, data: [{ id: "1301", lokasi: "KOTA JAKARTA" }] }
