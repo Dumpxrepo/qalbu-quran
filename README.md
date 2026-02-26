@@ -80,8 +80,6 @@ Pastikan Anda sudah menginstall **Node.js** (v18+).
     PUBLIC_API_SHALAT_PROVINSI=https://equran.id/api/v2/shalat/provinsi
     PUBLIC_API_SHALAT_KABKOTA=https://equran.id/api/v2/shalat/kabkota
     PUBLIC_API_SHALAT_JADWAL=https://equran.id/api/v2/shalat
-    PUBLIC_API_IPINFO=https://ipinfo.io
-    PUBLIC_API_IPINFO_TOKEN=6bb67ae5952de4
     PUBLIC_API_MQ_KOTA_CARI=https://api.myquran.com/v2/sholat/kota/cari
     PUBLIC_API_MQ_JADWAL=https://api.myquran.com/v2/sholat/jadwal
     ```
