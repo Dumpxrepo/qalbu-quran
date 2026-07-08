@@ -38,7 +38,7 @@ const prevSurat = parseInt(nomor!) > 1 ? parseInt(nomor!) - 1 : null;
 const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
 ---
 
-<Layout title={`${surat.namaLatin} | Qalbu`}>
+<Layout title={`${surat.namaLatin} | Qalbu`} description={`Baca Surat ${surat.namaLatin} (${surat.arti}) lengkap dengan tulisan Arab, latin, tafsir, dan audio MP3. ${surat.jumlahAyat} ayat.`} canonical={`https://qalbu-quran.pages.dev/surat/${nomor}/`}>
     <!-- WRAPPER UTAMA: Grid Layout (1 Kolom di Mobile, 4 Kolom di Desktop) -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-[1600px] mx-auto lg:px-4">
         

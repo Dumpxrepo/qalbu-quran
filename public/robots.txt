@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://qalbu-quran.pages.dev/sitemap.xml

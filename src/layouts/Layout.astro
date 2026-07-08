@@ -31,8 +31,11 @@
 
 interface Props {
   title: string;
+  description?: string;
+  canonical?: string;
+  image?: string;
 }
-const { title } = Astro.props;
+const { title, description, canonical, image } = Astro.props;
 
 // Menu utama
 const menuItems = [
@@ -173,13 +176,41 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
 <html lang="id" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content="Aplikasi Al-Quran dan Doa Online" />
     <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description || "Aplikasi Al-Quran, Doa, dan Jadwal Shalat online. Baca Al-Quran 114 surat, kumpulan doa harian, jadwal shalat, dan Asmaul Husna."} />
+    <meta name="robots" content="index, follow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonical || "https://qalbu-quran.pages.dev"} />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <title>{title}</title>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description || "Aplikasi Al-Quran, Doa, dan Jadwal Shalat online."} />
+    <meta property="og:image" content={image || "https://qalbu-quran.pages.dev/favicon.svg"} />
+    <meta property="og:url" content={canonical || "https://qalbu-quran.pages.dev"} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Qalbu" />
+    <meta property="og:locale" content="id_ID" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description || "Aplikasi Al-Quran, Doa, dan Jadwal Shalat online."} />
+    <meta name="twitter:image" content={image || "https://qalbu-quran.pages.dev/favicon.svg"} />
+
+    <!-- JSON-LD Schema -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Qalbu",
+        "url": "https://qalbu-quran.pages.dev",
+        "description": "Aplikasi Al-Quran, Doa, dan Jadwal Shalat online"
+      }
+    </script>
 
     <!-- Inline Script untuk deteksi tema awal (Mencegah FOUC) -->
     <script is:inline>

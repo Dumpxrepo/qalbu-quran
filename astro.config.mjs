@@ -3,7 +3,8 @@ import tailwind from "@astrojs/tailwind";
 import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
-  output: 'server', // Penting untuk SSR
+  site: 'https://qalbu-quran.pages.dev',
+  output: 'server',
   adapter: cloudflare(),
   integrations: [tailwind()]
 });

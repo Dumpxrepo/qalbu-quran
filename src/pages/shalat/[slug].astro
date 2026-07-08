@@ -5,7 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 const { slug } = Astro.params;
 ---
 
-<Layout title={`Jadwal Shalat | ${slug}`}>
+<Layout title={`Jadwal Shalat | ${slug}`} description={`Jadwal shalat 5 waktu untuk ${slug} — Subuh, Dzuhur, Ashar, Maghrib, Isya. Dilengkapi hitung mundur waktu shalat berikutnya.`} canonical={`https://qalbu-quran.pages.dev/shalat/${slug}/`}>
   <div class="space-y-6 animate-in fade-in duration-700">
     
     <!-- Header & Back Button -->
