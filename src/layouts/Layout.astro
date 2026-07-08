@@ -202,15 +202,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
     <meta name="twitter:image" content={image || "https://qalbu-quran.pages.dev/favicon.svg"} />
 
     <!-- JSON-LD Schema -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Qalbu",
-        "url": "https://qalbu-quran.pages.dev",
-        "description": "Aplikasi Al-Quran, Doa, dan Jadwal Shalat online"
-      }
-    </script>
+    <script type="application/ld+json" is:inline>{"@context":"https://schema.org","@type":"WebSite","name":"Qalbu","url":"https://qalbu-quran.pages.dev","description":"Aplikasi Al-Quran, Doa, dan Jadwal Shalat online"}</script>
 
     <!-- Inline Script untuk deteksi tema awal (Mencegah FOUC) -->
     <script is:inline>
