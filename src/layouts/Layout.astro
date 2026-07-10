@@ -1323,7 +1323,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       }
 
       /* Navigasi Tombol (Prev/Next) - Default state */
-      .dark button:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn), .dark a.bg-white:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn) {
+      .dark button:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn):not(#btn-special-page):not([class*=month-tab-btn]), .dark a.bg-white:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn) {
         background-color: var(--card-bg) !important;
         border-color: var(--nav-border) !important;
         color: var(--text) !important;
@@ -1592,6 +1592,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
 
       /* Active/Next Prayer Card Highlight */
       .dark #today-cards-container > div[class*="ring-2"] {
+        --tw-ring-color: rgb(52 211 153 / 1) !important;
         box-shadow: 0 0 20px rgba(52, 211, 153, 0.2) !important;
       }
 
@@ -2042,6 +2043,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
 
       /* Active/Next Prayer Card Highlight */
       .dark #content-container #today-cards-container > div[class*="ring-2"] {
+        --tw-ring-color: rgb(52 211 153 / 1) !important;
         box-shadow: 0 0 20px rgba(52, 211, 153, 0.2) !important;
       }
 
