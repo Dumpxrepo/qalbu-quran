@@ -98,8 +98,62 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
                     </div>
 
                     <div class="flex items-center gap-2 w-full md:w-auto justify-center">
-                        <!-- Qori Selector -->
-                        <select id="qori-selector" class="text-xs md:text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 md:px-3 md:py-2 text-slate-700 dark:text-slate-50 cursor-pointer focus:ring-1 focus:ring-emerald-500 outline-none transition-colors">
+                        <!-- Custom Qori Dropdown (Opsi A) -->
+                        <div class="relative inline-block text-left" id="qori-dropdown-wrapper">
+                            <button 
+                                type="button" 
+                                id="qori-dropdown-trigger" 
+                                class="flex items-center justify-between gap-2 text-xs md:text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 md:px-4 md:py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 w-full min-w-[170px] md:min-w-[210px]"
+                                aria-haspopup="listbox"
+                                aria-expanded="false"
+                            >
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                                    </svg>
+                                    <span id="selected-qori-name" class="font-medium truncate max-w-[110px] md:max-w-[155px]">Abdullah Al-Juhany</span>
+                                </div>
+                                <svg id="qori-chevron" class="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+
+                            <div 
+                                id="qori-dropdown-menu" 
+                                class="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl py-2 z-50 transform origin-top-right transition-all duration-200 scale-95 opacity-0 pointer-events-none focus:outline-none"
+                                role="listbox"
+                                tabindex="-1"
+                            >
+                                <div class="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                    Pilih Qari Audio
+                                </div>
+                                <div class="max-h-64 overflow-y-auto custom-scrollbar p-1.5 space-y-1">
+                                    {qoriOptions.map(q => (
+                                        <button
+                                            type="button"
+                                            class="qori-option-btn w-full flex items-center justify-between px-3 py-2.5 text-left rounded-xl text-xs md:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all duration-150 focus:outline-none"
+                                            role="option"
+                                            aria-selected={q.id === '01' ? 'true' : 'false'}
+                                            data-value={q.id}
+                                            data-name={q.name}
+                                        >
+                                            <div class="flex items-center gap-3">
+                                                <span class="w-6 h-6 flex items-center justify-center text-[10px] font-bold rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
+                                                    {q.name.split(' ').map(n => n[0]).slice(0,2).join('')}
+                                                </span>
+                                                <span class="font-medium">{q.name}</span>
+                                            </div>
+                                            <svg class="qori-check w-4 h-4 text-emerald-600 dark:text-emerald-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Original native select kept hidden for compatibility -->
+                        <select id="qori-selector" class="hidden">
                             {qoriOptions.map(q => (
                                 <option value={q.id}>{q.name}</option>
                             ))}
@@ -316,6 +370,12 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
 
     // --- VARIABLES ---
     const qoriSelector = document.getElementById('qori-selector');
+    const qoriDropdownTrigger = document.getElementById('qori-dropdown-trigger');
+    const qoriDropdownMenu = document.getElementById('qori-dropdown-menu');
+    const selectedQoriName = document.getElementById('selected-qori-name');
+    const qoriChevron = document.getElementById('qori-chevron');
+    const qoriOptionBtns = document.querySelectorAll('.qori-option-btn');
+    
     const fullPlayer = document.getElementById('full-player');
     const playBtns = document.querySelectorAll('.play-ayat-btn');
     const tafsirBtns = document.querySelectorAll('.tafsir-btn');
@@ -391,6 +451,90 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
         console.log(`[Surat Audio] Dispatched 'quran-audio-stopped' from ${source}`);
     };
 
+    // --- SINKRONISASI DROPDOWN KUSTOM QORI ---
+    let isDropdownOpen = false;
+
+    const toggleDropdown = (show) => {
+        isDropdownOpen = show !== undefined ? show : !isDropdownOpen;
+        if (isDropdownOpen) {
+            qoriDropdownMenu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+            qoriDropdownMenu.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
+            qoriChevron.classList.add('rotate-180');
+            qoriDropdownTrigger.setAttribute('aria-expanded', 'true');
+        } else {
+            qoriDropdownMenu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
+            qoriDropdownMenu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+            qoriChevron.classList.remove('rotate-180');
+            qoriDropdownTrigger.setAttribute('aria-expanded', 'false');
+        }
+    };
+
+    if (qoriDropdownTrigger && qoriDropdownMenu) {
+        qoriDropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDropdown();
+        });
+
+        // Tutup saat klik di luar area dropdown
+        document.addEventListener('click', (e) => {
+            if (isDropdownOpen && !qoriDropdownMenu.contains(e.target) && e.target !== qoriDropdownTrigger) {
+                toggleDropdown(false);
+            }
+        });
+
+        // Navigasi keyboard pada trigger
+        qoriDropdownTrigger.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleDropdown(true);
+            }
+        });
+
+        // Tutup saat menekan Escape
+        document.addEventListener('keydown', (e) => {
+            if (isDropdownOpen && e.key === 'Escape') {
+                toggleDropdown(false);
+                qoriDropdownTrigger.focus();
+            }
+        });
+    }
+
+    const syncDropdownUI = (activeId) => {
+        if (!qoriOptionBtns) return;
+        qoriOptionBtns.forEach(btn => {
+            const val = btn.getAttribute('data-value');
+            const name = btn.getAttribute('data-name');
+            const check = btn.querySelector('.qori-check');
+            if (val === activeId) {
+                btn.setAttribute('aria-selected', 'true');
+                if (check) check.classList.remove('hidden');
+                btn.classList.add('bg-emerald-50', 'dark:bg-emerald-950/30', 'text-emerald-700', 'dark:text-emerald-400');
+                if (selectedQoriName) selectedQoriName.textContent = name;
+            } else {
+                btn.setAttribute('aria-selected', 'false');
+                if (check) check.classList.add('hidden');
+                btn.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/30', 'text-emerald-700', 'dark:text-emerald-400');
+            }
+        });
+    };
+
+    if (qoriOptionBtns) {
+        qoriOptionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-value');
+                if (qoriSelector) {
+                    qoriSelector.value = val;
+                    qoriSelector.dispatchEvent(new Event('change'));
+                }
+                toggleDropdown(false);
+                if (qoriDropdownTrigger) qoriDropdownTrigger.focus();
+            });
+        });
+    }
+
+    // Inisialisasi awal UI Dropdown
+    syncDropdownUI(currentQoriId);
+
     // --- 1. LOGIKA GANTI QORI ---
     qoriSelector.addEventListener('change', (e) => {
         currentQoriId = e.target.value;
@@ -409,6 +553,9 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
         if(currentAudioElement) {
             pauseAudio(currentBtn);
         }
+
+        // Sinkronkan UI dropdown kustom
+        syncDropdownUI(currentQoriId);
     });
 
     // --- FUNGSI: Format Time (Detik -> MM:SS) ---
