@@ -32,39 +32,66 @@ const currentYear = dateNow.getFullYear();
     <div id="shalat-container" class="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
       <!-- GRID SYSTEM: Mobile Stack (1 kolom), Desktop Side-by-side (3 kolom) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Dropdown Provinsi -->
+        <!-- Dropdown Provinsi (Custom) -->
         <div class="space-y-2">
           <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Provinsi</label>
-          <select id="select-provinsi" class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
-            <option value="">Pilih Provinsi...</option>
-            {daftarProvinsi.map((prov: string) => (
-              <option value={prov}>{prov}</option>
-            ))}
-          </select>
+          <div class="relative" data-cs="select-provinsi">
+            <button type="button" class="cs-trigger flex items-center justify-between gap-2 w-full p-3 rounded-xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40" aria-haspopup="listbox" aria-expanded="false">
+              <span class="cs-value truncate text-left">Pilih Provinsi...</span>
+              <svg class="cs-chevron w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="cs-menu absolute left-0 right-0 mt-2 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl py-2 z-50 origin-top transition-all duration-200 scale-95 opacity-0 pointer-events-none" role="listbox" tabindex="-1">
+              <div class="cs-options max-h-64 overflow-y-auto p-1.5 space-y-1"></div>
+            </div>
+            <select id="select-provinsi" class="hidden">
+              <option value="">Pilih Provinsi...</option>
+              {daftarProvinsi.map((prov: string) => (
+                <option value={prov}>{prov}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <!-- Dropdown Kabupaten/Kota -->
+        <!-- Dropdown Kabupaten/Kota (Custom) -->
         <div class="space-y-2">
           <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Kabupaten / Kota</label>
-          <select id="select-kabkota" disabled class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-            <option value="">Pilih Kota...</option>
-          </select>
+          <div class="relative" data-cs="select-kabkota">
+            <button type="button" class="cs-trigger flex items-center justify-between gap-2 w-full p-3 rounded-xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 opacity-50 cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40" aria-haspopup="listbox" aria-expanded="false">
+              <span class="cs-value truncate text-left">Pilih Kota...</span>
+              <svg class="cs-chevron w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="cs-menu absolute left-0 right-0 mt-2 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl py-2 z-50 origin-top transition-all duration-200 scale-95 opacity-0 pointer-events-none" role="listbox" tabindex="-1">
+              <div class="cs-options max-h-64 overflow-y-auto p-1.5 space-y-1"></div>
+            </div>
+            <select id="select-kabkota" class="hidden" disabled>
+              <option value="">Pilih Kota...</option>
+            </select>
+          </div>
         </div>
 
-        <!-- Dropdown Bulan -->
+        <!-- Dropdown Bulan (Custom) -->
         <div class="space-y-2">
           <label class="text-sm font-semibold ml-1 text-slate-600 dark:text-[#f8fafc]">Bulan</label>
-          <select id="select-bulan" class="custom-select w-full p-3 rounded-xl border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
-            {Array.from({ length: 12 }, (_, i) => {
-              const monthNum = i + 1;
-              const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-              return (
-                <option value={monthNum} selected={monthNum === currentMonth}>
-                  {monthNames[i]} {currentYear}
-                </option>
-              );
-            })}
-          </select>
+          <div class="relative" data-cs="select-bulan">
+            <button type="button" class="cs-trigger flex items-center justify-between gap-2 w-full p-3 rounded-xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40" aria-haspopup="listbox" aria-expanded="false">
+              <span class="cs-value truncate text-left">Pilih Bulan...</span>
+              <svg class="cs-chevron w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="cs-menu absolute left-0 right-0 mt-2 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl py-2 z-50 origin-top transition-all duration-200 scale-95 opacity-0 pointer-events-none" role="listbox" tabindex="-1">
+              <div class="cs-options max-h-64 overflow-y-auto p-1.5 space-y-1"></div>
+            </div>
+            <select id="select-bulan" class="hidden">
+              {Array.from({ length: 12 }, (_, i) => {
+                const monthNum = i + 1;
+                const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                return (
+                  <option value={monthNum} selected={monthNum === currentMonth}>
+                    {monthNames[i]} {currentYear}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -348,6 +375,9 @@ const currentYear = dateNow.getFullYear();
       json.data.forEach((kota: string) => options += `<option value="${kota}">${kota}</option>`);
       selectKota.innerHTML = options;
       selectKota.disabled = false;
+      // Sync custom dropdown after dynamic options load
+      const kotaCs = document.querySelector('[data-cs="select-kabkota"]');
+      if (kotaCs && (kotaCs as any).refresh) (kotaCs as any).refresh();
     } catch (e) {
       console.error(e);
       selectKota.innerHTML = '<option value="">Error loading...</option>';
@@ -681,34 +711,116 @@ const currentYear = dateNow.getFullYear();
   selectKota?.addEventListener('change', renderData);
   selectBulan?.addEventListener('change', renderData);
 
+  // ==========================================
+  // CUSTOM DROPDOWN INITIALIZER
+  // ==========================================
+  function initCustomSelects() {
+    document.querySelectorAll('[data-cs]').forEach(container => {
+      const selectId = container.getAttribute('data-cs') || '';
+      const nativeSelect = document.getElementById(selectId) as HTMLSelectElement;
+      if (!nativeSelect) return;
+
+      const trigger = container.querySelector('.cs-trigger') as HTMLButtonElement;
+      const menu = container.querySelector('.cs-menu') as HTMLDivElement;
+      const valueEl = container.querySelector('.cs-value') as HTMLSpanElement;
+      const optionsEl = container.querySelector('.cs-options') as HTMLDivElement;
+      const chevron = container.querySelector('.cs-chevron') as SVGElement;
+
+      function isDisabled() { return nativeSelect.disabled; }
+
+      function buildOptions() {
+        optionsEl.innerHTML = '';
+        const hasRealOptions = Array.from(nativeSelect.options).some(o => o.value !== '');
+        Array.from(nativeSelect.options).forEach(opt => {
+          if (!opt.value && hasRealOptions) return;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'cs-option w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-xl text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all duration-150';
+          btn.textContent = opt.text;
+          btn.setAttribute('data-value', opt.value);
+          btn.onclick = () => {
+            if (isDisabled()) return;
+            nativeSelect.value = opt.value;
+            valueEl.textContent = opt.text;
+            closeMenu();
+            nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          };
+          optionsEl.appendChild(btn);
+        });
+        highlightSelected();
+      }
+
+      function highlightSelected() {
+        optionsEl.querySelectorAll('.cs-option').forEach(btn => {
+          const isActive = btn.getAttribute('data-value') === nativeSelect.value;
+          btn.classList.toggle('bg-emerald-50', isActive);
+          btn.classList.toggle('dark:bg-emerald-950/20', isActive);
+          btn.classList.toggle('text-emerald-700', isActive);
+          btn.classList.toggle('dark:text-emerald-400', isActive);
+        });
+      }
+
+      function openMenu() {
+        if (isDisabled()) return;
+        menu.classList.remove('scale-95', 'opacity-0', 'pointer-events-none');
+        menu.classList.add('scale-100', 'opacity-100', 'pointer-events-auto');
+        trigger.setAttribute('aria-expanded', 'true');
+        if (chevron) chevron.classList.add('rotate-180');
+      }
+
+      function closeMenu() {
+        menu.classList.add('scale-95', 'opacity-0', 'pointer-events-none');
+        menu.classList.remove('scale-100', 'opacity-100', 'pointer-events-auto');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (chevron) chevron.classList.remove('rotate-180');
+      }
+
+      function toggleMenu() {
+        if (isDisabled()) return;
+        const isOpen = !menu.classList.contains('pointer-events-none');
+        if (isOpen) closeMenu(); else openMenu();
+      }
+
+      function updateDisabledUI() {
+        trigger.classList.toggle('opacity-50', isDisabled());
+        trigger.classList.toggle('cursor-not-allowed', isDisabled());
+      }
+
+      trigger.onclick = toggleMenu;
+
+      document.addEventListener('click', e => {
+        if (!container.contains(e.target as Node)) closeMenu();
+      });
+
+      nativeSelect.addEventListener('change', () => {
+        const sel = nativeSelect.options[nativeSelect.selectedIndex];
+        if (sel) valueEl.textContent = sel.text;
+        buildOptions();
+        updateDisabledUI();
+      });
+
+      (container as any).refresh = () => {
+        buildOptions();
+        updateDisabledUI();
+        const sel = nativeSelect.options[nativeSelect.selectedIndex];
+        if (sel) valueEl.textContent = sel.text;
+      };
+
+      buildOptions();
+      updateDisabledUI();
+      const sel = nativeSelect.options[nativeSelect.selectedIndex];
+      if (sel) valueEl.textContent = sel.text;
+    });
+  }
+
+  initCustomSelects();
 </script>
 
 <style is:global>
-  /* Styling untuk Select Dropdown agar konsisten dengan tema */
-  .custom-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 1.25rem;
-    background-color: #f8fafc;
-    color: #334155;
-    border: 1px solid #e2e8f0;
-  }
-
-  /* Styling Dark Mode untuk Select */
-  .dark .custom-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23f8fafc'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
-    background-color: rgba(11, 18, 32, 0.85) !important;
-    color: #f8fafc !important;
-    border: 1px solid #334155 !important;
-  }
-  
-  /* Styling option dropdown di dalam dark mode */
-  .dark .custom-select option {
-    background-color: #0f172a !important;
-    color: #f8fafc !important;
-  }
+  /* Custom dropdown scrollbar */
+  .cs-options::-webkit-scrollbar { width: 4px; }
+  .cs-options::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+  .cs-options::-webkit-scrollbar-track { background-color: transparent; }
 
   /* Styling Tabel */
   #shalat-table {
