@@ -1323,10 +1323,15 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       }
 
       /* Navigasi Tombol (Prev/Next) - Default state */
-      .dark button, .dark a.bg-white {
+      .dark button:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn), .dark a.bg-white:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn) {
         background-color: var(--card-bg) !important;
         border-color: var(--nav-border) !important;
         color: var(--text) !important;
+      }
+
+      /* Dark mode scrollbar for custom dropdown menus */
+      .dark .cs-options::-webkit-scrollbar-thumb {
+        background-color: #475569 !important;
       }
 
       /* Header Ayat (Nomor & Teks Arab) */
