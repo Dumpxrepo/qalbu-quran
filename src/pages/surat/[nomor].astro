@@ -348,6 +348,49 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent; }
+
+        /* Qori Selector Custom Dropdown Styling & Specificity Overrides for Dark Mode */
+        #qori-dropdown-wrapper {
+            position: relative;
+        }
+        
+        #qori-dropdown-trigger:hover {
+            background-color: #e2e8f0; /* bg-slate-200 */
+        }
+
+        .qori-option-btn[aria-selected="true"] {
+            background-color: #ecfdf5 !important; /* bg-emerald-50 */
+            color: #047857 !important; /* text-emerald-700 */
+        }
+
+        /* Dark mode overrides (menang melawan global .dark button safety net karena selektor lebih spesifik) */
+        .dark #qori-dropdown-trigger {
+            background-color: var(--card-bg) !important;
+            border-color: var(--nav-border) !important;
+            color: var(--text) !important;
+        }
+        .dark #qori-dropdown-trigger:hover {
+            background-color: rgba(52, 211, 153, 0.1) !important; /* bg-emerald-400/10 */
+            border-color: var(--accent) !important;
+            color: var(--accent) !important;
+        }
+        .dark #qori-dropdown-menu {
+            background-color: rgba(11, 18, 32, 0.95) !important;
+            border-color: var(--nav-border) !important;
+        }
+        .dark .qori-option-btn {
+            background-color: transparent !important;
+            border-color: transparent !important;
+            color: var(--text) !important;
+        }
+        .dark .qori-option-btn:hover {
+            background-color: rgba(52, 211, 153, 0.1) !important; /* bg-emerald-400/10 */
+            color: var(--accent) !important;
+        }
+        .dark .qori-option-btn[aria-selected="true"] {
+            background-color: rgba(52, 211, 153, 0.2) !important; /* bg-emerald-400/20 */
+            color: var(--accent) !important;
+        }
     </style>
 </Layout>
 
@@ -508,12 +551,10 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
             if (val === activeId) {
                 btn.setAttribute('aria-selected', 'true');
                 if (check) check.classList.remove('hidden');
-                btn.classList.add('bg-emerald-50', 'dark:bg-emerald-950/30', 'text-emerald-700', 'dark:text-emerald-400');
                 if (selectedQoriName) selectedQoriName.textContent = name;
             } else {
                 btn.setAttribute('aria-selected', 'false');
                 if (check) check.classList.add('hidden');
-                btn.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/30', 'text-emerald-700', 'dark:text-emerald-400');
             }
         });
     };
