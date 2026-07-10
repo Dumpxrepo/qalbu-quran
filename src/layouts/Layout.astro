@@ -1759,12 +1759,14 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       }
 
       /* Tab Button - Active State (Bulan yang dipilih) */
+      /* UI/UX: Dark mode active tab uses emerald-500 (#10b981) instead of emerald-600 (#059669)
+         for higher contrast against dark background #0f172a. Emerald-500 is 17% brighter. */
       .dark .month-tab-btn.bg-emerald-600,
       .dark .month-tab-btn[class*="bg-emerald-600"] {
-        background-color: #059669 !important; /* Emerald-600 */
+        background-color: #10b981 !important; /* Emerald-500 — brighter for dark bg contrast */
         color: #ffffff !important;
-        box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.3), 0 2px 4px -1px rgba(5, 150, 105, 0.2) !important;
-        border: 1px solid rgba(52, 211, 153, 0.3) !important;
+        box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3), 0 2px 4px -1px rgba(16, 185, 129, 0.2) !important;
+        border: 1px solid rgba(52, 211, 153, 0.4) !important; /* Slightly more visible border */
         font-weight: 600;
       }
 
