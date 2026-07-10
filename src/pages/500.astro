@@ -1,4 +1,8 @@
 ---
+// src/pages/500.astro
+// Halaman error 500 jika terjadi kendala pada server (misal kegagalan API data fetch).
+// Desain disesuaikan agar konsisten dengan tema terang & gelap menggunakan color palette UI/UX premium.
+
 import Layout from '../layouts/Layout.astro';
 
 interface Props {
@@ -6,21 +10,52 @@ interface Props {
 }
 
 const { error } = Astro.props;
-// Untuk menghindari error TS pada metadata env
 const isDev = import.meta.env.DEV;
 ---
 
 <Layout title="500 | Server Error" description="Terjadi kesalahan server. Silakan kembali ke beranda Qalbu." canonical="https://qalbu-quran.pages.dev/500/">
-    <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
-        <h1 class="text-7xl font-bold text-rose-100 mb-4">500</h1>
-        <h2 class="text-2xl font-bold text-slate-800 mb-2">Terjadi Gangguan Server</h2>
-        <p class="text-slate-500 mb-8 max-w-sm">Maaf, kami gagal memuat data dari sumber API. Silakan coba beberapa saat lagi.</p>
-        <button onclick="window.location.reload()" class="bg-slate-800 text-white px-8 py-3 rounded-2xl font-bold hover:bg-slate-700 transition-all">Refresh Halaman</button>
+    <!-- Main container dengan flexbox dan transition untuk animasi transisi tema -->
+    <div class="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 transition-colors duration-500">
+        <!-- Angka status error: menggunakan Rose color palette yang melambangkan status Error / Alert -->
+        <h1 class="text-7xl font-bold text-rose-500 dark:text-rose-400 mb-4 transition-colors">500</h1>
         
+        <!-- Judul Error: Kontras tinggi di mode terang (slate-800) & mode gelap (slate-100) -->
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2 transition-colors">Terjadi Gangguan Server</h2>
+        
+        <!-- Deskripsi: Muted color slate-500 di terang & slate-400 di gelap -->
+        <p class="text-slate-500 dark:text-slate-400 mb-8 max-w-sm transition-colors">Maaf, kami gagal memuat data dari sumber API. Silakan coba beberapa saat lagi.</p>
+        
+        <!-- Tombol Refresh Halaman: Dilengkapi efek active press, hover glow shadow, dan safety net id -->
+        <button id="refresh-btn" onclick="window.location.reload()" class="bg-slate-800 dark:bg-slate-800 text-white dark:text-slate-100 px-8 py-3 rounded-2xl font-bold hover:bg-slate-700 dark:hover:bg-slate-700/80 active:scale-95 transition-all shadow-lg hover:shadow-xl dark:shadow-slate-900/30">
+            Refresh Halaman
+        </button>
+        
+        <!-- Error stack trace: Hanya ditampilkan di local/development environment (isDev) -->
         {isDev && error instanceof Error && (
-            <pre class="mt-8 p-4 bg-slate-100 rounded-lg text-xs text-rose-600 text-left max-w-xl overflow-auto">
+            <pre class="mt-8 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-xs text-rose-600 dark:text-rose-400 text-left max-w-xl overflow-auto border border-slate-200 dark:border-slate-700 font-mono">
                 {error.stack}
             </pre>
         )}
     </div>
 </Layout>
+
+<!-- Safety Net CSS Global untuk memaksa kecocokan warna di halaman 500 pada mode gelap -->
+<style is:global>
+  /* Menggunakan kelas .dark (Tailwind CSS Dark Mode) */
+  .dark .text-slate-800 {
+    color: #f8fafc !important; /* Force slate-100 equivalent */
+  }
+  .dark .text-slate-500 {
+    color: #cbd5e1 !important; /* Force slate-300 equivalent */
+  }
+  .dark #refresh-btn {
+    background-color: #1e293b !important; /* Slate-800 */
+    color: #f8fafc !important;
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  }
+  .dark #refresh-btn:hover {
+    background-color: #334155 !important; /* Slate-700 */
+    color: #ffffff !important;
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3) !important;
+  }
+</style>
