@@ -675,18 +675,19 @@ const { slug } = Astro.params;
           key: string;
           label: string;
           time: string;
-          color: string;
+          text: string;
+          border: string;
           bg: string;
         }
 
         // Definisi 6 shalat dengan styling masing-masing
         const cards: PrayerCard[] = [
-          { key: 'imsak', label: 'Imsak', time: displayData.imsak, color: 'text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-          { key: 'subuh', label: 'Subuh', time: displayData.subuh, color: 'text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800', bg: 'bg-sky-50 dark:bg-sky-900/20' },
-          { key: 'dzuhur', label: 'Dzuhur', time: displayData.dzuhur, color: 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-          { key: 'ashar', label: 'Ashar', time: displayData.ashar, color: 'text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-          { key: 'maghrib', label: 'Maghrib', time: displayData.maghrib, color: 'text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800', bg: 'bg-rose-50 dark:bg-rose-900/20' },
-          { key: 'isya', label: 'Isya', time: displayData.isya, color: 'text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+          { key: 'imsak', label: 'Imsak', time: displayData.imsak, text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { key: 'subuh', label: 'Subuh', time: displayData.subuh, text: 'text-sky-600 dark:text-sky-400', border: 'border-sky-200 dark:border-sky-800', bg: 'bg-sky-50 dark:bg-sky-900/20' },
+          { key: 'dzuhur', label: 'Dzuhur', time: displayData.dzuhur, text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+          { key: 'ashar', label: 'Ashar', time: displayData.ashar, text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+          { key: 'maghrib', label: 'Maghrib', time: displayData.maghrib, text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-200 dark:border-rose-800', bg: 'bg-rose-50 dark:bg-rose-900/20' },
+          { key: 'isya', label: 'Isya', time: displayData.isya, text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-800', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
         ];
 
         // Render kartu ke DOM
@@ -698,11 +699,16 @@ const { slug } = Astro.params;
               ? 'ring-2 ring-emerald-500 scale-105 shadow-lg z-10 transform transition-all duration-300' 
               : 'opacity-80 hover:opacity-100 hover:scale-[1.02] transition-all duration-300';
 
+            // Border highlight hijau ketika shalat berikutnya aktif
+            const borderClass = isNext 
+              ? 'border-emerald-500 dark:border-emerald-500' 
+              : c.border;
+
             // Badge "SEGERA" untuk shalat berikutnya
             const badgeText = isNext ? 'SEGERA' : '';
 
             return `
-              <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${c.color} ${c.bg} shadow-sm ${activeClass}">
+              <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${c.text} ${borderClass} ${c.bg} shadow-sm ${activeClass}">
                 <span class="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">${c.label}</span>
                 <span class="text-xl font-bold">${c.time}</span>
                 ${isNext ? `<span class="text-[10px] mt-1 font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">${badgeText}</span>` : ''}

@@ -893,6 +893,11 @@ const ENV = {
           ? 'ring-2 ring-emerald-500 scale-105 shadow-lg z-10 transform' // Highlight
           : 'opacity-90 hover:opacity-100 hover:scale-[1.02] transition-all duration-300'; // Normal
         
+        // Border highlight hijau ketika shalat berikutnya aktif
+        const borderClass = isNext 
+          ? 'border-emerald-500 dark:border-emerald-500' 
+          : colors.border;
+        
         // Badge "SEGERA" hanya untuk next prayer
         // Jika isTomorrow dan key adalah subuh, tampilkan "SEGERA"
         const badge = isNext 
@@ -901,7 +906,7 @@ const ENV = {
         
         // Template literal untuk HTML
         return `
-          <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${colors.text} ${colors.border} ${colors.bg} shadow-sm ${activeClass}">
+          <div class="flex flex-col items-center justify-center p-4 rounded-2xl border ${colors.text} ${borderClass} ${colors.bg} shadow-sm ${activeClass}">
             <span class="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">${prayerLabels[key]}</span>
             <span class="text-xl font-bold">${jadwal[key]}</span>
             ${badge}
