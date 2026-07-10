@@ -1205,6 +1205,19 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         color: #f8fafc !important;
       }
 
+      /* 4. Tombol "Daftar Surat" (Mobile List Button) di Halaman Surat - Opsi 1 */
+      .dark #mobile-list-btn {
+        background-color: rgba(16, 185, 129, 0.1) !important; /* Emerald-500 tint 10% */
+        color: #34d399 !important; /* Emerald-400 */
+      }
+      .dark #mobile-list-btn:hover {
+        background-color: rgba(16, 185, 129, 0.2) !important; /* Emerald-500 tint 20% */
+        color: #6ee7b7 !important; /* Emerald-300 */
+      }
+      .dark #mobile-list-btn:active {
+        background-color: rgba(16, 185, 129, 0.3) !important; /* Emerald-500 tint 30% */
+      }
+
       /* Override Qori Selector: Background & Border Visible di Dark Mode */
       .dark #qori-selector {
         background-color: #1e293b !important; /* Slate-800 */
@@ -1301,7 +1314,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       }
 
       /* Navigasi Tombol (Prev/Next) - Default state */
-      .dark button:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn):not(#btn-special-page):not([class*=month-tab-btn]), .dark a.bg-white:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn) {
+      .dark button:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn):not(#btn-special-page):not([class*=month-tab-btn]):not(#mobile-list-btn), .dark a.bg-white:not(.cs-trigger):not(.cs-option):not(#qori-dropdown-trigger):not(.qori-option-btn) {
         background-color: var(--card-bg) !important;
         border-color: var(--nav-border) !important;
         color: var(--text) !important;
