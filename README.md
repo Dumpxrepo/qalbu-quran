@@ -12,7 +12,7 @@ Website modern untuk membaca Al-Qur'an, doa harian, Asmaul Husna, jadwal imsakiy
 ![Halaman Utama](https://i.ibb.co.com/gFtrMMP1/aq-ss.png)
 
 ### Detail Surat
-![Detail Surat](https://i.ibb.co.com/tT5b3324/surat-ss.png)
+![Detail Surat](https://i.ibb.co.com/1JwQBSCg/qalbu-detail-surat.jpg)
 
 ### Asmaul Husna
 ![Asmaul Husna](https://i.ibb.co.com/jkcxL4dJ/ah-ss.png)
