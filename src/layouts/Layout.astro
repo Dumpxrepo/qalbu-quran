@@ -1091,6 +1091,25 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
 
     <!-- GLOBAL STYLES & THEME TOKENS -->
     <style is:global>
+      /* Disable transitions during page initialization to prevent theme flashing */
+      .theme-init * {
+        transition: none !important;
+      }
+
+      /* Smooth theme transitions for backgrounds, borders, and colors on non-layout elements */
+      html, #main-content, #site-footer, .surat-card, #sidebar-header, 
+      #sidebar-search, #mobile-sidebar-search, #nav-actions, .surat-link, .ayat-card,
+      header:not([class*="transition-"]), footer:not([class*="transition-"]), 
+      nav:not([class*="transition-"]), main:not([class*="transition-"]), 
+      section:not([class*="transition-"]), article:not([class*="transition-"]),
+      div:not([class*="transition-"]):not(#qori-dropdown-menu), 
+      button:not([class*="transition-"]):not(#qori-dropdown-trigger):not(.qori-option-btn), 
+      a:not([class*="transition-"]), span:not([class*="transition-"]), p:not([class*="transition-"]), 
+      h1, h2, h3, h4, h5, h6, input, select, textarea, svg, path {
+        transition-property: background-color, border-color, text-decoration-color, fill, stroke, color, box-shadow;
+        transition-duration: 300ms;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      }
       :root {
         --bg: #f8fafc;
         --card-bg: #ffffff;
