@@ -367,32 +367,9 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
             color: #047857 !important; /* text-emerald-700 */
         }
 
-        /* Dark mode overrides (menang melawan global .dark button safety net karena selektor lebih spesifik) */
-        :global(.dark) #qori-dropdown-trigger {
-            background-color: var(--card-bg) !important;
-            border-color: var(--nav-border) !important;
-            color: var(--text) !important;
-        }
-        :global(.dark) #qori-dropdown-trigger:hover {
-            background-color: rgba(52, 211, 153, 0.1) !important; /* bg-emerald-400/10 */
-            border-color: var(--accent) !important;
-            color: var(--accent) !important;
-        }
-        :global(.dark) #qori-dropdown-menu {
-            background-color: rgba(11, 18, 32, 0.95) !important;
-            border-color: var(--nav-border) !important;
-        }
-        :global(.dark) .qori-option-btn {
-            background-color: transparent !important;
-            border-color: transparent !important;
-            color: var(--text) !important;
-        }
-        :global(.dark) .qori-option-btn:hover {
-            background-color: rgba(52, 211, 153, 0.1) !important; /* bg-emerald-400/10 */
-            color: var(--accent) !important;
-        }
+        /* Dark mode: selected state only — rest handled by Tailwind dark: classes */
         :global(.dark) .qori-option-btn[aria-selected="true"] {
-            background-color: rgba(52, 211, 153, 0.2) !important; /* bg-emerald-400/20 */
+            background-color: rgba(52, 211, 153, 0.2) !important;
             color: var(--accent) !important;
         }
     </style>

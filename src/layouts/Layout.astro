@@ -776,13 +776,20 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
 
       // Event listener untuk tombol tema
       themeBtn?.addEventListener('click', () => {
-        const isNowDark = document.documentElement.classList.toggle('dark');
+        const html = document.documentElement;
+        html.classList.add('theme-switching');
+        const isNowDark = html.classList.toggle('dark');
         try { 
           localStorage.setItem('theme', isNowDark ? 'dark' : 'light'); 
         } catch(e) {
           // Silent fail jika localStorage tidak tersedia
         }
         updateIcons(isNowDark);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            html.classList.remove('theme-switching');
+          });
+        });
       });
 
       // ==========================================
@@ -1094,6 +1101,13 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* Disable transitions during page initialization to prevent theme flashing */
       .theme-init * {
         transition: none !important;
+      }
+
+      /* Force smooth transitions during theme toggle */
+      html.theme-switching, html.theme-switching * {
+        transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+        transition-duration: 300ms !important;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
 
       /* Smooth theme transitions for backgrounds, borders, and colors on non-layout elements */
