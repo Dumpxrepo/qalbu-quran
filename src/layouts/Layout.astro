@@ -1531,63 +1531,58 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       
       /* Base card styling untuk dark mode - meningkatkan visibility */
       .dark #today-cards-container > div {
-        background-color: rgba(30, 41, 59, 0.6) !important; /* Base slate-800 dengan opacity */
-        border-color: rgba(51, 65, 85, 0.8) !important;
+        background-color: rgba(30, 41, 59, 0.6) !important;
       }
 
-      /* Override spesifik untuk setiap warna kartu di dark mode */
+      /* Dark mode card border menggunakan Tailwind dark:border-* classes dari inline HTML.
+         Safety net ini hanya untuk bg, border dikelola Tailwind agar konsisten. */
+
       /* Imsak - Emerald */
       .dark #today-cards-container > div[class*="border-emerald"] {
         background-color: rgba(6, 78, 59, 0.25) !important;
-        border-color: rgba(52, 211, 153, 0.55) !important;
       }
       .dark #today-cards-container > div[class*="text-emerald"] span {
-        color: #34d399 !important; /* Emerald-400 */
+        color: #34d399 !important;
       }
 
       /* Subuh - Sky */
       .dark #today-cards-container > div[class*="border-sky"] {
         background-color: rgba(12, 74, 110, 0.25) !important;
-        border-color: rgba(56, 189, 248, 0.55) !important;
       }
       .dark #today-cards-container > div[class*="text-sky"] span {
-        color: #38bdf8 !important; /* Sky-400 */
+        color: #38bdf8 !important;
       }
 
       /* Dzuhur - Amber */
       .dark #today-cards-container > div[class*="border-amber"] {
         background-color: rgba(120, 53, 15, 0.25) !important;
-        border-color: rgba(251, 191, 36, 0.55) !important;
       }
       .dark #today-cards-container > div[class*="text-amber"] span {
-        color: #fbbf24 !important; /* Amber-400 */
+        color: #fbbf24 !important;
       }
 
       /* Ashar - Orange */
       .dark #today-cards-container > div[class*="border-orange"] {
         background-color: rgba(124, 45, 18, 0.25) !important;
-        border-color: rgba(251, 146, 60, 0.55) !important;
       }
       .dark #today-cards-container > div[class*="text-orange"] span {
-        color: #fb923c !important; /* Orange-400 */
+        color: #fb923c !important;
       }
 
       /* Maghrib - Rose */
       .dark #today-cards-container > div[class*="border-rose"] {
         background-color: rgba(136, 19, 55, 0.25) !important;
-        border-color: rgba(251, 113, 133, 0.55) !important;
       }
       .dark #today-cards-container > div[class*="text-rose"] span {
-        color: #fb7185 !important; /* Rose-400 */
+        color: #fb7185 !important;
       }
 
       /* Isya - Indigo */
       .dark #today-cards-container > div[class*="border-indigo"] {
         background-color: rgba(49, 46, 129, 0.25) !important;
-        border-color: rgba(129, 140, 248, 0.55) !important;
       }
       .dark #today-cards-container > div[class*="text-indigo"] span {
-        color: #818cf8 !important; /* Indigo-400 */
+        color: #818cf8 !important;
       }
 
       /* Active/Next Prayer Card Highlight */
@@ -1981,16 +1976,14 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         Styling sama dengan halaman index untuk konsistensi
       */
       
-      /* Base card styling */
+      /* Base card styling — border dikelola Tailwind dark:border-* dari inline HTML */
       .dark #content-container #today-cards-container > div {
         background-color: rgba(30, 41, 59, 0.6) !important;
-        border-color: rgba(51, 65, 85, 0.8) !important;
       }
 
       /* Imsak - Emerald */
       .dark #content-container #today-cards-container > div[class*="border-emerald"] {
         background-color: rgba(6, 78, 59, 0.25) !important;
-        border-color: rgba(52, 211, 153, 0.55) !important;
       }
       .dark #content-container #today-cards-container > div[class*="text-emerald"] span {
         color: #34d399 !important;
@@ -1999,7 +1992,6 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* Subuh - Sky */
       .dark #content-container #today-cards-container > div[class*="border-sky"] {
         background-color: rgba(12, 74, 110, 0.25) !important;
-        border-color: rgba(56, 189, 248, 0.55) !important;
       }
       .dark #content-container #today-cards-container > div[class*="text-sky"] span {
         color: #38bdf8 !important;
@@ -2008,7 +2000,6 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* Dzuhur - Amber */
       .dark #content-container #today-cards-container > div[class*="border-amber"] {
         background-color: rgba(120, 53, 15, 0.25) !important;
-        border-color: rgba(251, 191, 36, 0.55) !important;
       }
       .dark #content-container #today-cards-container > div[class*="text-amber"] span {
         color: #fbbf24 !important;
@@ -2017,7 +2008,6 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* Ashar - Orange */
       .dark #content-container #today-cards-container > div[class*="border-orange"] {
         background-color: rgba(124, 45, 18, 0.25) !important;
-        border-color: rgba(251, 146, 60, 0.55) !important;
       }
       .dark #content-container #today-cards-container > div[class*="text-orange"] span {
         color: #fb923c !important;
@@ -2026,7 +2016,6 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* Maghrib - Rose */
       .dark #content-container #today-cards-container > div[class*="border-rose"] {
         background-color: rgba(136, 19, 55, 0.25) !important;
-        border-color: rgba(251, 113, 133, 0.55) !important;
       }
       .dark #content-container #today-cards-container > div[class*="text-rose"] span {
         color: #fb7185 !important;
@@ -2035,7 +2024,6 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* Isya - Indigo */
       .dark #content-container #today-cards-container > div[class*="border-indigo"] {
         background-color: rgba(49, 46, 129, 0.25) !important;
-        border-color: rgba(129, 140, 248, 0.55) !important;
       }
       .dark #content-container #today-cards-container > div[class*="text-indigo"] span {
         color: #818cf8 !important;
