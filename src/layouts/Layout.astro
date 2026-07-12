@@ -774,22 +774,40 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       // Inisialisasi icon berdasarkan tema saat ini
       updateIcons(document.documentElement.classList.contains('dark'));
 
-      // Event listener untuk tombol tema
+      // Variabel untuk menyimpan ID timer aktif agar bisa dibersihkan saat klik cepat (debounce/anti-spam)
+      let themeTimeoutId: number | undefined;
+
+      // Event listener untuk tombol ganti tema (Sun/Moon Toggle)
       themeBtn?.addEventListener('click', () => {
         const html = document.documentElement;
+        
+        // Hapus timer sebelumnya jika pengguna mengklik tombol secara cepat berturut-turut (anti-spam)
+        if (themeTimeoutId) {
+          window.clearTimeout(themeTimeoutId);
+        }
+
+        // Tambahkan class penanda bahwa tema sedang berganti untuk memicu transisi CSS smooth
         html.classList.add('theme-switching');
+        
+        // Toggle class 'dark' di element HTML utama
         const isNowDark = html.classList.toggle('dark');
+        
         try { 
+          // Simpan preferensi tema ke localStorage agar bertahan saat reload halaman
           localStorage.setItem('theme', isNowDark ? 'dark' : 'light'); 
         } catch(e) {
-          // Silent fail jika localStorage tidak tersedia
+          // Gagal secara senyap (silent fail) jika localStorage dinonaktifkan di browser
         }
+        
+        // Update ikon tombol tema (Sun / Moon)
         updateIcons(isNowDark);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            html.classList.remove('theme-switching');
-          });
-        });
+        
+        // Biarkan transisi CSS (durasi 300ms) selesai sepenuhnya sebelum menghapus class 'theme-switching'.
+        // Kita menggunakan durasi 500ms sebagai batas aman (safety buffer).
+        themeTimeoutId = window.setTimeout(() => {
+          html.classList.remove('theme-switching');
+          themeTimeoutId = undefined;
+        }, 500);
       });
 
       // ==========================================
@@ -1111,8 +1129,9 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       }
 
       /* Smooth theme transitions for backgrounds, borders, and colors on non-layout elements */
+      /* Catatan: .ayat-card diubah menjadi .ayat-item agar sesuai dengan class HTML pada detail surat */
       html, #main-content, #site-footer, .surat-card, #sidebar-header, 
-      #sidebar-search, #mobile-sidebar-search, #nav-actions, .surat-link, .ayat-card,
+      #sidebar-search, #mobile-sidebar-search, #nav-actions, .surat-link, .ayat-item,
       header:not([class*="transition-"]), footer:not([class*="transition-"]), 
       nav:not([class*="transition-"]), main:not([class*="transition-"]), 
       section:not([class*="transition-"]), article:not([class*="transition-"]),
