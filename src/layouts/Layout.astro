@@ -1236,6 +1236,30 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
 
       /* Catatan: Selektor wildcard global yang sangat berat ditiadakan di sini 
          untuk menghindari overhead komputasi transisi di browser saat interaksi non-tema. */
+
+      /* =========================================================================
+         NATIVE LAZY RENDERING (OPTIMASI DOM DAN PERFORMA SCROLL/THEME SWITCHING)
+         =========================================================================
+         Properti `content-visibility: auto` memberitahu browser untuk melewatkan 
+         proses tata letak (layout) dan pengecatan (painting) pada kartu ayat, 
+         surat, doa, atau asmaul husna yang saat ini berada di luar layar (off-screen).
+         
+         Kenapa ini sangat penting?
+         - Mencegah browser melakukan render ulang (reflow & repaint) yang berat untuk 
+           ribuan elemen saat ganti tema atau saat pengguna scroll cepat.
+         - `contain-intrinsic-size` menentukan estimasi tinggi/lebar elemen sebelum di-render 
+           agar pergeseran layout (CLS - Cumulative Layout Shift) tidak terjadi.
+           
+         Keunggulan Solusi Ini:
+         1. Sangat cepat & menggunakan native browser logic.
+         2. Teks tetap dapat dicari menggunakan pencarian browser (Ctrl + F).
+         3. Halaman tetap dapat melompat ke jangkar ayat (hash link scroll) dengan mulus.
+         ========================================================================= */
+      .ayat-item, .husna-card, .doa-card, .surat-card {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 180px;
+      }
+
       :root {
         --bg: #f8fafc;
         --card-bg: #ffffff;
