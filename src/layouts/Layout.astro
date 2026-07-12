@@ -1089,9 +1089,41 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         transition: none !important;
       }
 
-      /* Force smooth transitions during theme toggle */
-      html.theme-switching, html.theme-switching * {
-        transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+      /* Force smooth transitions only on elements that actually change color/border during theme toggle */
+      /* Ini menghindari penggunaan wildcard (*) yang memicu reflow/repaint berat pada ribuan DOM element (terutama halaman dengan banyak ayat) */
+      html.theme-switching,
+      html.theme-switching body,
+      html.theme-switching #main-content,
+      html.theme-switching #site-footer,
+      html.theme-switching #nav-content,
+      html.theme-switching #brand,
+      html.theme-switching #nav-actions,
+      html.theme-switching #nav-actions a,
+      html.theme-switching .sticky-header-control,
+      html.theme-switching .sticky-header-control h1,
+      html.theme-switching .sticky-header-control p,
+      html.theme-switching #sidebar-header,
+      html.theme-switching #sidebar-search,
+      html.theme-switching #sidebar-list a,
+      html.theme-switching #surat-desc-box,
+      html.theme-switching #surat-desc-box p,
+      html.theme-switching .ayat-item,
+      html.theme-switching .ayat-item span,
+      html.theme-switching .ayat-item p,
+      html.theme-switching .ayat-item button,
+      html.theme-switching .ayat-item svg,
+      html.theme-switching .ayat-item path,
+      html.theme-switching .husna-card,
+      html.theme-switching .husna-card h3,
+      html.theme-switching .husna-card p,
+      html.theme-switching .husna-card div,
+      html.theme-switching .doa-card,
+      html.theme-switching .doa-card h3,
+      html.theme-switching .doa-card p,
+      html.theme-switching .doa-card div,
+      html.theme-switching #theme-toggle,
+      html.theme-switching #theme-toggle svg {
+        transition-property: background-color, border-color, text-decoration-color, color, fill, stroke, box-shadow !important;
         transition-duration: 300ms !important;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
