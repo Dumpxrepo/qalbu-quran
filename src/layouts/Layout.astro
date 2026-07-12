@@ -256,10 +256,10 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         <div class="flex items-center gap-3 z-10">
           <!-- Theme Toggle Button -->
           <button id="theme-toggle" class="relative p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-amber-400 w-10 h-10 overflow-hidden transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/50" aria-label="Ganti Tema">
-            <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 m-auto w-5 h-5 transition-all duration-500 rotate-0 opacity-100 scale-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 m-auto w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.0 0 017.5 0z" />
             </svg>
-            <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 m-auto w-5 h-5 transition-all duration-500 -rotate-90 opacity-0 scale-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 m-auto w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
             </svg>
           </button>
@@ -450,8 +450,6 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       // Type assertion "as" memberitahu TypeScript tipe spesifik element
       
       const themeBtn = document.getElementById('theme-toggle') as HTMLButtonElement | null;
-      const sunIcon = document.getElementById('sun-icon') as SVGElement | null;
-      const moonIcon = document.getElementById('moon-icon') as SVGElement | null;
       const navContent = document.getElementById('nav-content') as HTMLElement | null;
       const navWrapper = document.getElementById('nav-wrapper') as HTMLElement | null;
       const menuContainer = document.getElementById('nav-menu-container') as HTMLElement | null;
@@ -745,39 +743,12 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       // ==========================================
       // 3. THEME LOGIC (EXISTING)
       // ==========================================
-      /**
-       * Fungsi: updateIcons(isDark: boolean)
-       * Deskripsi: Mengupdate tampilan icon sun/moon berdasarkan tema
-       * Parameter: isDark - true jika dark mode aktif
-       * 
-       * Algoritma Animasi:
-       * - Sun Icon: Rotate 90deg, scale 0, opacity 0 (hidden)
-       * - Moon Icon: Rotate 0deg, scale 1, opacity 1 (visible)
-       * - Transition: 500ms untuk semua properties
-       */
-      const updateIcons = (isDark: boolean) => {
-        if (isDark) {
-          // Dark mode: Sembunyikan sun, tampilkan moon
-          sunIcon?.classList.add('rotate-90', 'scale-0', 'opacity-0');
-          sunIcon?.classList.remove('rotate-0', 'scale-100', 'opacity-100');
-          moonIcon?.classList.remove('-rotate-90', 'scale-0', 'opacity-0');
-          moonIcon?.classList.add('rotate-0', 'scale-100', 'opacity-100');
-        } else {
-          // Light mode: Tampilkan sun, sembunyikan moon
-          sunIcon?.classList.remove('rotate-90', 'scale-0', 'opacity-0');
-          sunIcon?.classList.add('rotate-0', 'scale-100', 'opacity-100');
-          moonIcon?.classList.add('-rotate-90', 'scale-0', 'opacity-0');
-          moonIcon?.classList.remove('rotate-0', 'scale-100', 'opacity-100');
-        }
-      };
-
-      // Inisialisasi icon berdasarkan tema saat ini
-      updateIcons(document.documentElement.classList.contains('dark'));
-
       // Variabel untuk menyimpan ID timer aktif agar bisa dibersihkan saat klik cepat (debounce/anti-spam)
       let themeTimeoutId: number | undefined;
 
       // Event listener untuk tombol ganti tema (Sun/Moon Toggle)
+      // Catatan: Tampilan ikon Sun & Moon kini sepenuhnya dikendalikan via CSS berdasarkan kelas .dark pada <html>.
+      // Ini menjaga kode JavaScript tetap bersih, efisien, dan mengikuti prinsip Separation of Concerns.
       themeBtn?.addEventListener('click', () => {
         const html = document.documentElement;
         
@@ -786,7 +757,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
           window.clearTimeout(themeTimeoutId);
         }
 
-        // Tambahkan class penanda bahwa tema sedang berganti untuk memicu transisi CSS smooth
+        // Tambahkan class penanda bahwa tema sedang berganti untuk memicu transisi CSS smooth pada seluruh halaman
         html.classList.add('theme-switching');
         
         // Toggle class 'dark' di element HTML utama
@@ -799,10 +770,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
           // Gagal secara senyap (silent fail) jika localStorage dinonaktifkan di browser
         }
         
-        // Update ikon tombol tema (Sun / Moon)
-        updateIcons(isNowDark);
-        
-        // Biarkan transisi CSS (durasi 300ms) selesai sepenuhnya sebelum menghapus class 'theme-switching'.
+        // Biarkan transisi CSS selesai sepenuhnya sebelum menghapus class 'theme-switching'.
         // Kita menggunakan durasi 500ms sebagai batas aman (safety buffer).
         themeTimeoutId = window.setTimeout(() => {
           html.classList.remove('theme-switching');
@@ -1392,10 +1360,50 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* --- 5. Sync Mobile Icon Color with Theme Toggle --- */
       .dark #mobile-menu-btn span { background-color: #f8fafc !important; }
 
-      /* --- 6. Button Backgrounds --- */
+      /* --- 6. Button Backgrounds & Premium Animations --- */
+      #theme-toggle {
+        position: relative;
+        transition: background-color 0.3s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
+      }
+      
+      /* Pendaran (glow) halus di sekeliling tombol tema saat diarahkan kursor */
+      #theme-toggle:hover {
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important; /* Glow kuning amber hangat di mode terang */
+      }
+      
+      .dark #theme-toggle:hover {
+        box-shadow: 0 0 12px rgba(52, 211, 153, 0.25) !important; /* Glow hijau emerald di mode gelap */
+      }
+
       .dark #theme-toggle, .dark #mobile-menu-btn {
         background-color: #1e293b !important;
         color: #f8fafc !important;
+      }
+
+      /* Animasi transisi bouncy spring / melenting untuk ikon Sun & Moon */
+      #sun-icon, #moon-icon {
+        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease !important;
+        transform-origin: center !important;
+      }
+
+      /* State Default (Light Mode): Ikon Sun tampak normal, Moon tersembunyi berputar -90 derajat */
+      #sun-icon {
+        transform: rotate(0deg) scale(1);
+        opacity: 1;
+      }
+      #moon-icon {
+        transform: rotate(-90deg) scale(0);
+        opacity: 0;
+      }
+
+      /* State Aktif (Dark Mode): Ikon Sun berputar 90 derajat mengecil, Moon berputar masuk normal */
+      .dark #sun-icon {
+        transform: rotate(90deg) scale(0);
+        opacity: 0;
+      }
+      .dark #moon-icon {
+        transform: rotate(0deg) scale(1);
+        opacity: 1;
       }
 
       .dark .nav-link { color: #f8fafc !important; }
