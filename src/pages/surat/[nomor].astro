@@ -36,6 +36,11 @@ const qoriOptions = [
 
 const prevSurat = parseInt(nomor!) > 1 ? parseInt(nomor!) - 1 : null;
 const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
+
+// Konfigurasi Progressive Rendering / Lazy Load Ayat (Opsi 1)
+const INITIAL_AYAT_COUNT = 15;
+const needsLazyLoad = surat.ayat.length > INITIAL_AYAT_COUNT;
+const initialAyat = needsLazyLoad ? surat.ayat.slice(0, INITIAL_AYAT_COUNT) : surat.ayat;
 ---
 
 <Layout title={`${surat.namaLatin} | Qalbu`} description={`Baca Surat ${surat.namaLatin} (${surat.arti}) lengkap dengan tulisan Arab, latin, tafsir, dan audio MP3. ${surat.jumlahAyat} ayat.`} canonical={`https://qalbu-quran.pages.dev/surat/${nomor}/`}>
@@ -207,8 +212,8 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
             </div>
 
             <!-- LIST AYAT -->
-            <div class="space-y-6">
-                {surat.ayat.map((ayat) => (
+            <div id="ayat-list-container" class="space-y-6">
+                {initialAyat.map((ayat) => (
                     <div id={`ayat-${ayat.nomorAyat}`} class="ayat-item bg-white p-4 md:p-6 rounded-2xl border border-slate-100 hover:shadow-md transition-all scroll-mt-36 group">
                         
                         <!-- Header Ayat: Nomor, Button Play, Teks Arab -->
@@ -266,6 +271,35 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
                     </div>
                 ))}
             </div>
+
+            {needsLazyLoad && (
+                <div id="infinite-scroll-trigger" class="py-10 flex flex-col items-center justify-center space-y-4">
+                    <!-- Skeleton Loader Container -->
+                    <div id="skeleton-container" class="w-full space-y-6 hidden">
+                        <div class="ayat-skeleton bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-100 dark:border-slate-800 animate-pulse space-y-6">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-50 dark:border-b-slate-800 pb-4">
+                                <div class="flex items-center gap-3 w-full md:w-auto">
+                                    <div class="w-8 h-8 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+                                    <div class="w-9 h-9 bg-slate-200 dark:bg-slate-800 rounded-full"></div>
+                                    <div class="w-20 h-6 bg-slate-200 dark:bg-slate-800 rounded-full"></div>
+                                </div>
+                                <div class="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/3 ml-auto md:ml-0"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3"></div>
+                                <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="loading-spinner flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400 font-medium text-sm">
+                        <svg class="animate-spin h-5 w-5 text-emerald-600 dark:text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Memuat ayat selanjutnya...</span>
+                    </div>
+                </div>
+            )}
         </main>
     </div>
 
@@ -368,10 +402,19 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
             background-color: rgba(52, 211, 153, 0.2) !important;
             color: var(--accent) !important;
         }
+
+        /* New fade-in animation for lazy loaded verses */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </Layout>
 
-<script define:vars={{ surat }}>
+<script define:vars={{ surat, tafsirData, INITIAL_AYAT_COUNT, needsLazyLoad }}>
     /**
      * ========================================================================
      * AUDIO QURAN MANAGER - INTEGRASI DENGAN BACKGROUND MUSIC
@@ -397,8 +440,6 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
     const qoriOptionBtns = document.querySelectorAll('.qori-option-btn');
     
     const fullPlayer = document.getElementById('full-player');
-    const playBtns = document.querySelectorAll('.play-ayat-btn');
-    const tafsirBtns = document.querySelectorAll('.tafsir-btn');
     const tafsirModal = document.getElementById('tafsir-modal');
     const closeTafsirBtns = [document.getElementById('close-tafsir'), document.getElementById('close-tafsir-btn')];
     
@@ -687,54 +728,253 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
         }, 100);
     }
 
-    // --- 2. LOGIKA BUTTON CLICK (PER AYAT) ---
-    playBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const audioId = `audio-el-${btn.getAttribute('data-nomor-ayat')}`;
+    // --- 2. EVENT DELEGATION & ACTION LISTENERS (PER AYAT) ---
+    /**
+     * Menggunakan Event Delegation Pattern untuk mengelola interaksi klik.
+     * Ini sangat efisien karena menghindari penambahan event listener individual
+     * pada ratusan tombol ayat baru yang dirender secara dinamis.
+     */
+    document.addEventListener('click', (e) => {
+        // Handle klik tombol Play/Pause Ayat
+        const playBtn = e.target.closest('.play-ayat-btn');
+        if (playBtn) {
+            const nomorAyat = playBtn.getAttribute('data-nomor-ayat');
+            const audioId = `audio-el-${nomorAyat}`;
             const audioEl = document.getElementById(audioId);
             
-            if (currentAudioElement === audioEl && !audioEl.paused) {
-                // Sedang play -> pause
-                pauseAudio(btn);
-            } else {
-                // Sedang pause atau audio lain -> play
-                playAudio(btn, audioEl);
+            if (audioEl) {
+                if (currentAudioElement === audioEl && !audioEl.paused) {
+                    pauseAudio(playBtn);
+                } else {
+                    playAudio(playBtn, audioEl);
+                }
             }
-        });
+            return;
+        }
+
+        // Handle klik tombol Tafsir
+        const tafsirBtn = e.target.closest('.tafsir-btn');
+        if (tafsirBtn) {
+            const teks = tafsirBtn.getAttribute('data-tafsir');
+            const ayatNum = tafsirBtn.getAttribute('data-ayat');
+            const modalAyatNumEl = document.getElementById('modal-ayat-num');
+            const modalContentEl = document.getElementById('modal-content');
+            
+            if (modalAyatNumEl && modalContentEl && teks) {
+                modalAyatNumEl.textContent = ayatNum;
+                const formattedText = teks.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br />');
+                modalContentEl.innerHTML = `<p>${formattedText}</p>`;
+                openTafsir();
+            }
+            return;
+        }
     });
 
-    // --- 3. LOGIKA AUTO NEXT (PLAYLIST) ---
+    // --- 3. LOGIKA AUTO NEXT DENGAN CAPTURE-PHASE & DYNAMIC LOAD ---
     /**
-     * ALGORITMA AUTO NEXT:
-     * Ketika audio ayat selesai, otomatis play ayat berikutnya
-     * Jika tidak ada ayat berikutnya, kirim event stopped ke parent
+     * Menggunakan capture phase (true) di level document untuk menangkap event 'ended'
+     * pada elemen audio baru yang ditambahkan secara dinamis (karena media event tidak bubble).
      */
-    document.querySelectorAll('audio.ayat-audio-element').forEach(audio => {
-        audio.onended = () => {
-            const currentId = parseInt(audio.id.split('-')[2]);
+    document.addEventListener('ended', (e) => {
+        const audioEl = e.target;
+        if (audioEl && audioEl.classList.contains('ayat-audio-element')) {
+            const currentId = parseInt(audioEl.id.split('-')[2]);
             const nextId = currentId + 1;
-            const nextBtn = document.querySelector(`.play-ayat-btn[data-nomor-ayat="${nextId}"]`);
             
-            if(currentBtn) {
-                // Reset UI current button
+            if (currentBtn) {
                 pauseAudio(currentBtn);
             }
 
-            if (nextBtn) {
-                // Ada ayat berikutnya -> scroll dan play
-                document.getElementById(`ayat-${nextId}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setTimeout(() => nextBtn.click(), 500);
-                // Note: Tidak perlu kirim stopped karena nextBtn.click() akan kirim started
+            playNextAyatOrLoad(nextId);
+        }
+    }, true); // Parameter true untuk capture-phase!
+
+    /**
+     * Memainkan ayat berikutnya. Jika ayat belum dirender di DOM,
+     * secara otomatis memicu pemuatan batch berikutnya terlebih dahulu.
+     */
+    function playNextAyatOrLoad(nextId) {
+        if (nextId > surat.ayat.length) {
+            notifyParentAudioStopped('ayat');
+            currentAudioElement = null;
+            currentBtn = null;
+            return;
+        }
+
+        let nextBtn = document.querySelector(`.play-ayat-btn[data-nomor-ayat="${nextId}"]`);
+        
+        if (nextBtn) {
+            const nextContainer = document.getElementById(`ayat-${nextId}`);
+            if (nextContainer) {
+                nextContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            setTimeout(() => nextBtn.click(), 500);
+        } else {
+            // Jika ayat belum ada di DOM, panggil loadNextBatch dan teruskan pemutaran
+            if (typeof loadNextBatch === 'function') {
+                loadNextBatch(() => {
+                    nextBtn = document.querySelector(`.play-ayat-btn[data-nomor-ayat="${nextId}"]`);
+                    if (nextBtn) {
+                        const nextContainer = document.getElementById(`ayat-${nextId}`);
+                        if (nextContainer) {
+                            nextContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        setTimeout(() => nextBtn.click(), 500);
+                    } else {
+                        notifyParentAudioStopped('ayat');
+                        currentAudioElement = null;
+                        currentBtn = null;
+                    }
+                });
             } else {
-                // Tidak ada ayat berikutnya (surat selesai)
                 notifyParentAudioStopped('ayat');
                 currentAudioElement = null;
                 currentBtn = null;
             }
-        };
-    });
+        }
+    }
 
-    // --- 4. LOGIKA FULL PLAYER (AUDIO FULL SURAT) ---
+    // --- 4. LAZY LOADING / INFINITE SCROLL LOGIC ---
+    let loadedCount = INITIAL_AYAT_COUNT;
+    const batchSize = 10;
+    let observer = null;
+    let trigger = null;
+
+    if (needsLazyLoad) {
+        const container = document.getElementById('ayat-list-container');
+        trigger = document.getElementById('infinite-scroll-trigger');
+        const skeletonContainer = document.getElementById('skeleton-container');
+
+        if (container && trigger && skeletonContainer) {
+            observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    loadNextBatch();
+                }
+            }, {
+                rootMargin: '300px 0px 300px 0px' // Memicu pemuatan 300px sebelum viewport
+            });
+
+            observer.observe(trigger);
+        }
+    }
+
+    /**
+     * Memuat batch ayat berikutnya dari memori lokal dan menambahkannya ke DOM.
+     * Menggunakan spinner & skeleton screen dengan delay 300ms untuk transisi yang premium.
+     */
+    function loadNextBatch(cb) {
+        if (loadedCount >= surat.ayat.length) {
+            if (cb) cb();
+            return;
+        }
+
+        const skeletonContainer = document.getElementById('skeleton-container');
+        if (skeletonContainer) {
+            skeletonContainer.classList.remove('hidden');
+        }
+
+        setTimeout(() => {
+            const nextBatch = surat.ayat.slice(loadedCount, loadedCount + batchSize);
+            const container = document.getElementById('ayat-list-container');
+
+            if (container) {
+                nextBatch.forEach((ayat) => {
+                    const ayatEl = createAyatElement(ayat);
+                    container.appendChild(ayatEl);
+                });
+            }
+
+            loadedCount += nextBatch.length;
+
+            if (skeletonContainer) {
+                skeletonContainer.classList.add('hidden');
+            }
+
+            // Unobserve jika semua ayat sudah dimuat
+            if (loadedCount >= surat.ayat.length) {
+                if (observer && trigger) {
+                    observer.unobserve(trigger);
+                }
+                if (trigger) {
+                    trigger.classList.add('hidden');
+                }
+            }
+
+            if (cb) cb();
+        }, 300);
+    }
+
+    /**
+     * Membuat representasi DOM dari elemen ayat secara aman & teratur.
+     * Menerapkan class .animate-fade-in untuk efek visual slide-up fade-in yang halus.
+     */
+    function createAyatElement(ayat) {
+        const div = document.createElement('div');
+        div.id = `ayat-${ayat.nomorAyat}`;
+        // Gunakan kelas animate-fade-in untuk transisi visual yang smooth
+        div.className = 'ayat-item bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-100 dark:border-slate-800 hover:shadow-md transition-all scroll-mt-36 group animate-fade-in';
+
+        const tafsirObj = tafsirData.find((t) => t.ayat === ayat.nomorAyat);
+        const tafsirText = tafsirObj ? tafsirObj.teks : '';
+        const escapedTafsir = tafsirText.replace(/"/g, '&quot;');
+
+        div.innerHTML = `
+            <!-- Header Ayat: Nomor, Button Play, Teks Arab -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-50 dark:border-b-slate-800 pb-4">
+                <div class="flex items-center gap-3 w-full md:w-auto overflow-hidden">
+                    <span class="w-8 h-8 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center text-sm font-bold border border-slate-200 dark:border-slate-700 shrink-0">
+                        ${ayat.nomorAyat}
+                    </span>
+                    
+                    <!-- BUTTON PLAY / PAUSE & PROGRESS BAR -->
+                    <div class="flex items-center gap-2">
+                        <button 
+                            class="play-ayat-btn w-9 h-9 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors shrink-0 shadow-sm"
+                            data-audio-urls='${JSON.stringify(ayat.audio)}' 
+                            data-nomor-ayat="${ayat.nomorAyat}"
+                        >
+                            <!-- Icon Play -->
+                            <svg class="icon-play w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <!-- Icon Pause -->
+                            <svg class="icon-pause w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+
+                        <!-- Progress Bar Container -->
+                        <div class="progress-container w-0 overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-center h-9 opacity-0">
+                            <div class="w-32 md:w-48 flex items-center gap-2">
+                                <div class="progress-fill h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full w-full overflow-hidden">
+                                    <div class="progress-fill-inner h-full bg-emerald-500 w-0 transition-all duration-100 linear"></div>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-mono w-8 text-right progress-time">0:00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        class="tafsir-btn text-xs font-medium text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-700 px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors border border-slate-100 dark:border-slate-700 ml-auto md:ml-0 shrink-0"
+                        data-tafsir="${escapedTafsir}"
+                        data-ayat="${ayat.nomorAyat}"
+                    >
+                        📖 Tafsir
+                    </button>
+                </div>
+
+                <p class="font-arabic text-2xl md:text-3xl text-right text-slate-800 dark:text-slate-100 leading-loose w-full md:w-1/2" dir="rtl">
+                    ${ayat.teksArab}
+                </p>
+            </div>
+
+            <div class="space-y-2 text-center md:text-left">
+                <p class="text-emerald-600 dark:text-emerald-400 font-medium text-sm">${ayat.teksLatin}</p>
+                <p class="text-slate-600 dark:text-slate-300 text-base leading-relaxed">${ayat.teksIndonesia}</p>
+            </div>
+
+            <audio class="ayat-audio-element hidden" id="audio-el-${ayat.nomorAyat}"></audio>
+        `;
+        return div;
+    }
+
+    // --- 5. LOGIKA FULL PLAYER (AUDIO FULL SURAT) ---
     /**
      * FULL PLAYER EVENT LISTENERS
      * Mendengarkan event play, pause, dan ended pada full audio player
@@ -764,7 +1004,7 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
         notifyParentAudioStopped('full');
     });
 
-    // --- 5. MODAL TAFSIR (EXISTING) ---
+    // --- 6. MODAL TAFSIR (EXISTING) ---
     const openTafsir = () => {
         tafsirModal.classList.remove('hidden');
         setTimeout(() => {
@@ -784,17 +1024,6 @@ const nextSurat = parseInt(nomor!) < 114 ? parseInt(nomor!) + 1 : null;
             document.body.style.overflow = '';
         }, 300);
     };
-
-    tafsirBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const teks = btn.getAttribute('data-tafsir');
-            const ayatNum = btn.getAttribute('data-ayat');
-            document.getElementById('modal-ayat-num').textContent = ayatNum;
-            const formattedText = teks.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br />');
-            document.getElementById('modal-content').innerHTML = `<p>${formattedText}</p>`;
-            openTafsir();
-        });
-    });
 
     closeTafsirBtns.forEach(b => b?.addEventListener('click', closeTafsir));
     tafsirModal.addEventListener('click', (e) => { if(e.target === tafsirModal) closeTafsir(); });
