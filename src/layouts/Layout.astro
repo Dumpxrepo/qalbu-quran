@@ -1363,6 +1363,7 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       /* --- 6. Button Backgrounds & Premium Animations --- */
       #theme-toggle {
         position: relative;
+        overflow: hidden !important; /* Safety net: memastikan pemotongan visual (clipping) sempurna di semua browser */
         transition: background-color 0.3s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
       }
       
@@ -1380,29 +1381,30 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         color: #f8fafc !important;
       }
 
-      /* Animasi transisi bouncy spring / melenting untuk ikon Sun & Moon */
+      /* Animasi transisi slide-up (meluncur ke atas) untuk ikon Sun & Moon */
+      /* Menggunakan timing function standard bezier agar terasa responsif namun tetap smooth */
       #sun-icon, #moon-icon {
-        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease !important;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease !important;
         transform-origin: center !important;
       }
 
-      /* State Default (Light Mode): Ikon Sun tampak normal, Moon tersembunyi berputar -90 derajat */
+      /* State Default (Light Mode): Ikon Sun berada di tengah, Moon berada di bawah siap meluncur naik */
       #sun-icon {
-        transform: rotate(0deg) scale(1);
+        transform: translateY(0);
         opacity: 1;
       }
       #moon-icon {
-        transform: rotate(-90deg) scale(0);
+        transform: translateY(100%);
         opacity: 0;
       }
 
-      /* State Aktif (Dark Mode): Ikon Sun berputar 90 derajat mengecil, Moon berputar masuk normal */
+      /* State Aktif (Dark Mode): Ikon Sun meluncur naik keluar dari tombol, Moon meluncur naik ke tengah */
       .dark #sun-icon {
-        transform: rotate(90deg) scale(0);
+        transform: translateY(-100%);
         opacity: 0;
       }
       .dark #moon-icon {
-        transform: rotate(0deg) scale(1);
+        transform: translateY(0);
         opacity: 1;
       }
 
