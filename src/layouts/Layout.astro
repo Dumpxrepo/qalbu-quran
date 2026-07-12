@@ -1080,6 +1080,76 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
           yearDisplay.textContent = `${BUILD_YEAR_CLIENT}`;
         }
       }
+
+      // =========================================================================
+      // IMPLEMENTASI DESIGN PATTERN: OBSERVER PATTERN (VIEWPORT-ONLY TRANSITIONS)
+      // =========================================================================
+      // Pola desain (Design Pattern) Observer digunakan di sini untuk memantau
+      // visibilitas kartu ayat, surat, doa, atau asmaul husna terhadap layar (viewport).
+      //
+      // Kenapa Pola Ini Sangat Efektif?
+      // - Dibandingkan melakukan transisi pada ribuan elemen DOM secara bersamaan
+      //   (yang membebani CPU/GPU), kita membatasi animasi transisi hanya pada elemen
+      //   yang sedang dilihat oleh pengguna (in-view).
+      // - Elemen di luar layar akan berubah warna secara instan.
+      // - Hasilnya: Transisi tema yang mulus, responsif, dan stabil di 60 FPS.
+      //
+      // Cara Kerja:
+      // 1. Intersection Observer memantau target elemen.
+      // 2. Ketika elemen masuk/keluar viewport, class "in-view" ditambahkan/dihapus.
+      // 3. Mutation Observer memantau jika ada elemen baru yang ditambahkan ke DOM
+      //    (seperti ketika melakukan pencarian atau render dinamis) agar otomatis diamati.
+      // =========================================================================
+
+      const setupViewportObserver = () => {
+        // Cek dukungan fitur di browser sebelum eksekusi (safety check)
+        if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+        
+        // Buat objek Intersection Observer (Pola Observer standar browser)
+        // rootMargin '150px' memastikan elemen mulai dipantau & bersiap transisi 150px
+        // sebelum benar-benar terlihat di layar agar transisi terasa mulus tanpa jeda delay.
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in-view');
+            } else {
+              entry.target.classList.remove('in-view');
+            }
+          });
+        }, {
+          rootMargin: '150px 0px 150px 0px'
+        });
+        
+        // Fungsi pembantu untuk mengumpulkan dan mengamati kartu-kartu konten yang berat
+        const observeElements = () => {
+          const targets = document.querySelectorAll('.ayat-item, .surat-card, .husna-card, .doa-card, .surat-link');
+          targets.forEach((target) => {
+            observer.observe(target);
+          });
+        };
+        
+        // Daftarkan elemen-elemen awal
+        observeElements();
+        
+        // PENGAMAN DINAMIS: Menggunakan Mutation Observer
+        // Jika isi halaman berganti secara dinamis (misal daftar surat berubah), 
+        // kita daftarkan ulang elemen baru ke dalam pengamatan Intersection Observer.
+        const mutationObserver = new MutationObserver(() => {
+          observeElements();
+        });
+        
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) {
+          mutationObserver.observe(mainContent, { childList: true, subtree: true });
+        }
+      };
+
+      // Jalankan inisialisasi observer setelah dokumen web siap dimuat sepenuhnya
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupViewportObserver);
+      } else {
+        setupViewportObserver();
+      }
     </script>
 
     <!-- GLOBAL STYLES & THEME TOKENS -->
@@ -1089,9 +1159,17 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         transition: none !important;
       }
 
-      /* Force smooth transitions only on elements that actually change color/border during theme toggle - Optimized (60 FPS) */
-      /* Mengelompokkan transisi berdasarkan properti spesifik yang berubah untuk menghindari overhead CPU/GPU */
-      
+      /* =========================================================================
+         OPTIMASI PERFORMA TRANSISI TEMA (60 FPS SMOOTH TRANSITION)
+         =========================================================================
+         Untuk mencegah lag pada halaman dengan ribuan elemen, transisi hanya dipicu
+         pada pembungkus layout utama (selalu terlihat) dan elemen yang saat ini 
+         sedang aktif berada di dalam viewport layar pengguna (.in-view).
+         
+         Semua elemen di luar viewport akan berubah warna/border secara instan (0ms)
+         tanpa memicu style recalculation atau layout repaint yang berat.
+         ========================================================================= */
+
       /* 1. Latar Belakang (Background Color) */
       html.theme-switching,
       html.theme-switching body,
@@ -1104,9 +1182,10 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       html.theme-switching #sidebar-search,
       html.theme-switching #sidebar-list a,
       html.theme-switching #surat-desc-box,
-      html.theme-switching .ayat-item,
-      html.theme-switching .husna-card,
-      html.theme-switching .doa-card {
+      html.theme-switching #mobile-sidebar-search,
+      html.theme-switching #mobile-sidebar-list,
+      html.theme-switching #mobile-list-modal,
+      html.theme-switching .in-view {
         transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
       
@@ -1118,9 +1197,10 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       html.theme-switching #sidebar-search,
       html.theme-switching #sidebar-list a,
       html.theme-switching #surat-desc-box,
-      html.theme-switching .ayat-item,
-      html.theme-switching .husna-card,
-      html.theme-switching .doa-card {
+      html.theme-switching #mobile-sidebar-search,
+      html.theme-switching #mobile-modal-header,
+      html.theme-switching #mobile-modal-search-area,
+      html.theme-switching .in-view {
         transition: border-color 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
 
@@ -1130,24 +1210,23 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       html.theme-switching #sidebar-list a span,
       html.theme-switching #sidebar-list a div,
       html.theme-switching #surat-desc-box p,
-      html.theme-switching .ayat-item p,
-      html.theme-switching .ayat-item span,
-      html.theme-switching .ayat-item button,
-      html.theme-switching .husna-card h3,
-      html.theme-switching .husna-card p,
-      html.theme-switching .doa-card h3,
-      html.theme-switching .doa-card p,
-      html.theme-switching #nav-actions a {
+      html.theme-switching #brand span,
+      html.theme-switching #site-footer p,
+      html.theme-switching #site-footer span,
+      html.theme-switching #nav-actions a,
+      html.theme-switching #mobile-modal-header-text,
+      html.theme-switching .in-view p,
+      html.theme-switching .in-view span,
+      html.theme-switching .in-view button,
+      html.theme-switching .in-view h3,
+      html.theme-switching .in-view h4,
+      html.theme-switching .in-view h5 {
         transition: color 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
 
-      /* 4. SVGs & Paths (Hanya untuk icon selain tombol tema utama) */
-      html.theme-switching .ayat-item svg,
-      html.theme-switching .ayat-item path,
-      html.theme-switching .doa-card svg,
-      html.theme-switching .doa-card path,
-      html.theme-switching .husna-card svg,
-      html.theme-switching .husna-card path,
+      /* 4. SVGs & Paths */
+      html.theme-switching .in-view svg,
+      html.theme-switching .in-view path,
       html.theme-switching #nav-actions svg,
       html.theme-switching #nav-actions path,
       html.theme-switching #sidebar-search svg,
@@ -1155,21 +1234,8 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         transition: fill 300ms cubic-bezier(0.4, 0, 0.2, 1), stroke 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
 
-      /* Smooth theme transitions for backgrounds, borders, and colors on non-layout elements */
-      /* Catatan: .ayat-card diubah menjadi .ayat-item agar sesuai dengan class HTML pada detail surat */
-      html, #main-content, #site-footer, .surat-card, #sidebar-header, 
-      #sidebar-search, #mobile-sidebar-search, #nav-actions, .surat-link, .ayat-item,
-      header:not([class*="transition-"]), footer:not([class*="transition-"]), 
-      nav:not([class*="transition-"]), main:not([class*="transition-"]), 
-      section:not([class*="transition-"]), article:not([class*="transition-"]),
-      div:not([class*="transition-"]):not(#qori-dropdown-menu), 
-      button:not([class*="transition-"]):not(#qori-dropdown-trigger):not(.qori-option-btn), 
-      a:not([class*="transition-"]), span:not([class*="transition-"]), p:not([class*="transition-"]), 
-      h1, h2, h3, h4, h5, h6, input, select, textarea, svg, path {
-        transition-property: background-color, border-color, text-decoration-color, fill, stroke, color, box-shadow;
-        transition-duration: 300ms;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      }
+      /* Catatan: Selektor wildcard global yang sangat berat ditiadakan di sini 
+         untuk menghindari overhead komputasi transisi di browser saat interaksi non-tema. */
       :root {
         --bg: #f8fafc;
         --card-bg: #ffffff;
