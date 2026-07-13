@@ -771,11 +771,13 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
         }
         
         // Biarkan transisi CSS selesai sepenuhnya sebelum menghapus class 'theme-switching'.
-        // Kita menggunakan durasi 500ms sebagai batas aman (safety buffer).
+        // PERHATIAN: Dengan 286+ ayat yang ikut bertransisi (content-visibility: visible override),
+        // diperlukan buffer lebih besar dari CSS transition duration (300ms).
+        // 500ms = 300ms transisi + 200ms buffer untuk 286 element.
         themeTimeoutId = window.setTimeout(() => {
           html.classList.remove('theme-switching');
           themeTimeoutId = undefined;
-        }, 500);
+        }, 700);
       });
 
       // ==========================================
@@ -1232,6 +1234,18 @@ const BACKGROUND_MUSIC_URL = 'https://files.catbox.moe/fr2qnc.mp3';
       html.theme-switching #sidebar-search svg,
       html.theme-switching #sidebar-search path {
         transition: fill 300ms cubic-bezier(0.4, 0, 0.2, 1), stroke 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+      }
+
+      /* 5. Semua elemen konten dinamis (ayat, surat, doa, husna) — override content-visibility
+         agar ALL elements participate in theme transition, not just .in-view ones. */
+      html.theme-switching .ayat-item,
+      html.theme-switching .husna-card,
+      html.theme-switching .doa-card,
+      html.theme-switching .surat-card {
+        content-visibility: visible;
+        transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                    border-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                    color 300ms cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       /* Catatan: Selektor wildcard global yang sangat berat ditiadakan di sini 
